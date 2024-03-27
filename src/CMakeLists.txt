@@ -3,6 +3,7 @@ target_sources(xld PRIVATE
     main.cc
     wasm_main.cc
     input_file.cc
+    pass.cc
     )
 target_link_libraries(xld PRIVATE
     headers

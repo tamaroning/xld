@@ -4,6 +4,14 @@
 
 namespace xld::wasm {
 
+template <typename E, typename T>
+std::vector<T> parse_vec(Context<E> &ctx, const u8 *data) {
+    static_assert(sizeof(T) == 1 || sizeof(T) == 4 || sizeof(T) == 8);
+    u32 size = *reinterpret_cast<const u32 *>(data);
+    std::vector<T> vec{data + sizeof(u32), data + sizeof(u32) + size};
+    return vec;
+}
+
 template <typename E>
 InputFile<E>::InputFile(Context<E> &ctx, MappedFile *mf)
     : mf(mf), filename(mf->name) {
@@ -17,8 +25,7 @@ InputFile<E>::InputFile(Context<E> &ctx, MappedFile *mf)
           ohdr->magic[2] == WASM_MAGIC[2] && ohdr->magic[3] == WASM_MAGIC[3]))
         Fatal(ctx) << filename << ": bad magic\n";
 
-    // wasm_sections
-    // shstrtab
+    // Should check version?
 }
 
 template <typename E>

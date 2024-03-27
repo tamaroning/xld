@@ -51,6 +51,32 @@ class SyncOut {
 };
 
 template <typename Context>
+class Debug {
+  public:
+    Debug(Context &ctx, std::ostream *out = &std::cout) : out(out) {}
+
+    ~Debug() {
+        if (out) {
+            std::scoped_lock lock(mu);
+            *out << "xld: \033[0;1;34mdebug\033[0m: " << ss.str() << "\n";
+        }
+    }
+
+    template <class T>
+    Debug &operator<<(T &&val) {
+        if (out)
+            ss << std::forward<T>(val);
+        return *this;
+    }
+
+    static inline std::mutex mu;
+
+  private:
+    std::ostream *out;
+    std::stringstream ss;
+};
+
+template <typename Context>
 static std::string add_color(Context &ctx, std::string msg) {
     if (ctx.arg.color_diagnostics)
         return "xld: \033[0;1;31m" + msg + ":\033[0m ";
@@ -152,5 +178,9 @@ struct Context {
         std::string chroot;
     } arg;
 };
+
+// pass.cc
+template <typename E>
+void resolve_symbols(Context<E> &);
 
 } // namespace xld::wasm
