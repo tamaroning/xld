@@ -5,6 +5,13 @@ namespace xld::wasm {
 template <typename E>
 int wasm_main(int argc, char **argv) {
     // TODO: main logic here
+    Context<E> ctx;
+
+    SyncOut(ctx) << "a";
+    Warn(ctx) << "a";
+    Error(ctx) << "a";
+    Fatal(ctx) << "a";
+
     return 0;
 }
 
