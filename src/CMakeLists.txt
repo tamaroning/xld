@@ -6,6 +6,7 @@ target_link_libraries(xld PRIVATE
     #utils
     wasm
     common
+    tbb
     )
 
 #add_subdirectory(utils)

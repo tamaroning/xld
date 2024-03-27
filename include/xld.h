@@ -19,12 +19,15 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <vector>
 #include <sys/stat.h>
 #include <sys/types.h>
 //#include <tbb/concurrent_vector.h>
 //#include <tbb/enumerable_thread_specific.h>
 //#include <tbb/parallel_for.h>
-#include <vector>
+#include "oneapi/tbb.h"
+
+using namespace oneapi::tbb;
 
 #ifdef _WIN32
 #include <io.h>

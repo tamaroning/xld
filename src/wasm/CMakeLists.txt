@@ -4,4 +4,5 @@ target_sources(wasm PRIVATE
     )
 target_link_libraries(wasm PRIVATE
     common
+    tbb
     )
