@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common/mmap.h"
+#include "section.h"
 #include "xld.h"
 
 namespace xld::wasm {
@@ -35,6 +36,8 @@ class ObjectFile : public InputFile<E> {
 
   private:
     ObjectFile(Context<E> &ctx, MappedFile *mf);
+
+    std::vector<std::unique_ptr<InputSection<E>>> sections;
 };
 
 } // namespace xld::wasm

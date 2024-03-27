@@ -1,4 +1,5 @@
 #include "common/leb128.h"
+#include "section.h"
 #include "wao.h"
 #include "wasm.h"
 #include "xld.h"
@@ -51,15 +52,21 @@ void ObjectFile<E>::parse(Context<E> &ctx) {
         u8 sec_id = *p;
         p += 1;
         u64 size = decodeULEB128AndInc(p);
+
+        std::string_view name = "<unknown>";
         switch (sec_id) {
         case WASM_SEC_CUSTOM: {
             std::vector<char> name_vec = parse_vec<char>(ctx, p);
-            std::string name = std::string(name_vec.begin(), name_vec.end());
-            Debug(ctx) << "name: " << name;
+            name = std::string_view(name_vec.begin(), name_vec.end());
         } break;
         default:
-            Warn(ctx) << "section id=" << (u32)sec_id << " is not supported";
+            // Warn(ctx) << "section id=" << (u32)sec_id << " is not supported";
+            break;
         }
+
+        this->sections.push_back(std::unique_ptr<InputSection<E>>(
+            new InputSection(sec_id, p, size, this, p - data, name)));
+
         p += size;
     }
 }
