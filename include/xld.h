@@ -76,9 +76,7 @@ inline void cleanup() {
 template <typename Context>
 class SyncOut {
   public:
-    SyncOut(Context &ctx, std::ostream *out = &std::cout) : out(out) {
-        opt_demangle = ctx.arg.demangle;
-    }
+    SyncOut(Context &ctx, std::ostream *out = &std::cout) : out(out) {}
 
     ~SyncOut() {
         if (out) {
@@ -104,8 +102,8 @@ class SyncOut {
 template <typename Context>
 static std::string add_color(Context &ctx, std::string msg) {
     if (ctx.arg.color_diagnostics)
-        return "mold: \033[0;1;31m" + msg + ":\033[0m ";
-    return "mold: " + msg + ": ";
+        return "xld: \033[0;1;31m" + msg + ":\033[0m ";
+    return "xld: " + msg + ": ";
 }
 
 template <typename Context>
@@ -135,12 +133,8 @@ template <typename Context>
 class Error {
   public:
     Error(Context &ctx) : out(ctx, &std::cerr) {
-        if (ctx.arg.noinhibit_exec) {
-            out << add_color(ctx, "warning");
-        } else {
-            out << add_color(ctx, "error");
-            ctx.has_error = true;
-        }
+        out << add_color(ctx, "error");
+        ctx.has_error = true;
     }
 
     template <class T>
@@ -156,14 +150,8 @@ class Error {
 template <typename Context>
 class Warn {
   public:
-    Warn(Context &ctx)
-        : out(ctx, ctx.arg.suppress_warnings ? nullptr : &std::cerr) {
-        if (ctx.arg.fatal_warnings) {
-            out << add_color(ctx, "error");
-            ctx.has_error = true;
-        } else {
-            out << add_color(ctx, "warning");
-        }
+    Warn(Context &ctx) : out(ctx, &std::cerr) {
+        out << add_color(ctx, "warning");
     }
 
     template <class T>
@@ -185,5 +173,32 @@ struct WASM64;
 
 template <typename E>
 int wasm_main(int argc, char **argv);
+
+template <typename E>
+struct Context {
+    Context() {}
+
+    Context(const Context<E> &) = delete;
+
+    void checkpoint() {
+        if (has_error) {
+            cleanup();
+            _exit(1);
+        }
+    }
+
+    bool has_error = false;
+
+    // tbb::concurrent_vector<std::unique_ptr<ObjectFile<E>>> obj_pool;
+    // tbb::concurrent_vector<std::unique_ptr<MappedFile>> mf_pool;
+
+    // Input files
+    // std::vector<ObjectFile<E> *> objs;
+
+    // Command-line arguments
+    struct {
+        bool color_diagnostics = true;
+    } arg;
+};
 
 } // namespace xld::wasm
