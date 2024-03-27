@@ -7,9 +7,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 enable_testing()
 
-add_library(common INTERFACE)
-target_include_directories(common INTERFACE include)
-target_compile_features(common INTERFACE cxx_std_20)
+add_library(headers INTERFACE)
+target_include_directories(headers INTERFACE include)
+target_compile_features(headers INTERFACE cxx_std_20)
 
 add_subdirectory(src)
 add_subdirectory(third_party/tbb)

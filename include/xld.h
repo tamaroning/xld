@@ -1,66 +1,14 @@
 #pragma once
 
-// Copy from mold
+#include "common/mmap.h"
+#include "common/system.h"
 
-#include <array>
-#include <atomic>
-#include <bit>
-#include <bitset>
-#include <cassert>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <fcntl.h>
-#include <filesystem>
-#include <iostream>
-#include <mutex>
-#include <optional>
-#include <span>
-#include <sstream>
-#include <string>
-#include <string_view>
-#include <vector>
-#include <sys/stat.h>
-#include <sys/types.h>
-//#include <tbb/concurrent_vector.h>
-//#include <tbb/enumerable_thread_specific.h>
-//#include <tbb/parallel_for.h>
-#include "oneapi/tbb.h"
+namespace xld::wasm {
 
-using namespace oneapi::tbb;
+template <typename E>
+class ObjectFile;
 
-#ifdef _WIN32
-#include <io.h>
-#else
-#include <sys/mman.h>
-#include <unistd.h>
-#endif
-
-#ifdef NDEBUG
-#define unreachable() __builtin_unreachable()
-#else
-#define unreachable() assert(0 && "unreachable")
-#endif
-
-// __builtin_assume() is supported only by clang, and [[assume]] is
-// available only in C++23, so we use this macro when giving a hint to
-// the compiler's optimizer what's true.
-#define ASSUME(x)                                                              \
-    do {                                                                       \
-        if (!(x))                                                              \
-            __builtin_unreachable();                                           \
-    } while (0)
-
-// This is an assert() that is enabled even in the release build.
-#define ASSERT(x)                                                              \
-    do {                                                                       \
-        if (!(x)) {                                                            \
-            std::cerr << "Assertion failed: (" << #x << "), function "         \
-                      << __FUNCTION__ << ", file " << __FILE__ << ", line "    \
-                      << __LINE__ << ".\n";                                    \
-            std::abort();                                                      \
-        }                                                                      \
-    } while (0)
+}
 
 namespace xld {
 
@@ -192,15 +140,16 @@ struct Context {
 
     bool has_error = false;
 
-    // tbb::concurrent_vector<std::unique_ptr<ObjectFile<E>>> obj_pool;
-    // tbb::concurrent_vector<std::unique_ptr<MappedFile>> mf_pool;
+    tbb::concurrent_vector<std::unique_ptr<ObjectFile<E>>> obj_pool;
+    tbb::concurrent_vector<std::unique_ptr<MappedFile>> mf_pool;
 
     // Input files
-    // std::vector<ObjectFile<E> *> objs;
+    std::vector<ObjectFile<E> *> objs;
 
     // Command-line arguments
     struct {
         bool color_diagnostics = true;
+        std::string chroot;
     } arg;
 };
 

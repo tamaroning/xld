@@ -2,3 +2,5 @@ build/
 .cache/
 .vscode/
 .clangd
+*.o
+*.wat

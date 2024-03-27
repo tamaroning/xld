@@ -1,3 +1,5 @@
+#include "common/file.h"
+#include "wasm.h"
 #include "xld.h"
 
 namespace xld::wasm {
@@ -6,10 +8,13 @@ template <typename E>
 int wasm_main(int argc, char **argv) {
     // TODO: main logic here
     Context<E> ctx;
-    
-    parallel_for(0, 10, [&](int i) {
-        SyncOut(ctx) << i << " ";
-    });
+
+    for (int i = 1; i < argc; i++) {
+        std::string path = argv[i];
+        SyncOut(ctx) << path << "\n";
+        ctx.objs.push_back(
+            ObjectFile<E>::create(ctx, must_open_file(ctx, path)));
+    }
 
     SyncOut(ctx) << "a";
     Warn(ctx) << "a";
