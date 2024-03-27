@@ -1,16 +1,9 @@
+#include "common/leb128.h"
 #include "wao.h"
 #include "wasm.h"
 #include "xld.h"
 
 namespace xld::wasm {
-
-template <typename E, typename T>
-std::vector<T> parse_vec(Context<E> &ctx, const u8 *data) {
-    static_assert(sizeof(T) == 1 || sizeof(T) == 4 || sizeof(T) == 8);
-    u32 size = *reinterpret_cast<const u32 *>(data);
-    std::vector<T> vec{data + sizeof(u32), data + sizeof(u32) + size};
-    return vec;
-}
 
 template <typename E>
 InputFile<E>::InputFile(Context<E> &ctx, MappedFile *mf)
@@ -37,6 +30,38 @@ ObjectFile<E> *ObjectFile<E>::create(Context<E> &ctx, MappedFile *mf) {
     ObjectFile<E> *obj = new ObjectFile<E>(ctx, mf);
     ctx.obj_pool.push_back(std::unique_ptr<ObjectFile<E>>(obj));
     return obj;
+}
+
+template <typename T, typename E>
+std::vector<T> parse_vec(Context<E> &ctx, const u8 *data) {
+    u64 num = decodeULEB128AndInc(data);
+    if (num == 0)
+        return std::vector<T>();
+    std::vector<T> vec{data, data + sizeof(T) * num};
+    assert(vec.size() == num);
+    return vec;
+}
+
+template <typename E>
+void ObjectFile<E>::parse(Context<E> &ctx) {
+    u8 *data = this->mf->data;
+    const u8 *p = data + sizeof(WasmObjectHeader);
+
+    while (p - data < this->mf->size) {
+        u8 sec_id = *p;
+        p += 1;
+        u64 size = decodeULEB128AndInc(p);
+        switch (sec_id) {
+        case WASM_SEC_CUSTOM: {
+            std::vector<char> name_vec = parse_vec<char>(ctx, p);
+            std::string name = std::string(name_vec.begin(), name_vec.end());
+            Debug(ctx) << "name: " << name;
+        } break;
+        default:
+            Warn(ctx) << "section id=" << (u32)sec_id << " is not supported";
+        }
+        p += size;
+    }
 }
 
 using E = WASM32;

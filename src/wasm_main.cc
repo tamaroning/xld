@@ -12,14 +12,14 @@ int wasm_main(int argc, char **argv) {
     for (int i = 1; i < argc; i++) {
         std::string path = argv[i];
         SyncOut(ctx) << "Open " << path_clean(path) << "\n";
-        ctx.objs.push_back(
-            ObjectFile<E>::create(ctx, must_open_file(ctx, path)));
+        ObjectFile<E> *obj =
+            ObjectFile<E>::create(ctx, must_open_file(ctx, path));
+        obj->parse(ctx);
+        ctx.objs.push_back(obj);
     }
 
     if (ctx.objs.empty())
         Fatal(ctx) << "no input files\n";
-
-    Debug(ctx) << "aaa";
 
     resolve_symbols(ctx);
 
