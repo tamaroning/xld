@@ -35,7 +35,8 @@ ObjectFile<E> *ObjectFile<E>::create(Context<E> &ctx, MappedFile *mf) {
     return obj;
 }
 
-// Can be used for variable-length elements
+// Parse vector of variable-length element and increment pointer
+// f needs to increment pointer
 template <typename T>
 std::vector<T> parse_vec_varlen(const u8 *data,
                                 std::function<T(const u8 *)> f) {
@@ -47,16 +48,17 @@ std::vector<T> parse_vec_varlen(const u8 *data,
     return v;
 }
 
-// Only can be used for fix-length elements
+// Parse vector of fix-length element and increment pointer
 template <typename T>
-std::vector<T> parse_vec(const u8 *data) {
+std::vector<T> parse_vec(const u8 *&data) {
     u64 num = decodeULEB128AndInc(data);
     std::vector<T> vec{data, data + sizeof(T) * num};
+    data += sizeof(T) * num;
     return vec;
 }
 
 template <typename E>
-std::vector<u64> parse_uleb128_vec(Context<E> &ctx, const u8 *data) {
+std::vector<u64> parse_uleb128_vec(Context<E> &ctx, const u8 *&data) {
     u64 num = decodeULEB128AndInc(data);
     std::vector<u64> v;
     for (int i = 0; i < num; i++) {
@@ -65,13 +67,16 @@ std::vector<u64> parse_uleb128_vec(Context<E> &ctx, const u8 *data) {
     return v;
 }
 
-std::string parse_name(const u8 *data) {
+// Parse name and increment pointer
+std::string parse_name(const u8 *&data) {
     u64 num = decodeULEB128AndInc(data);
     std::string name{data, data + num};
+    data += num;
     return name;
 }
 
-WasmLimits parse_limits(const u8 *data) {
+// Parse limits and increment pointer
+WasmLimits parse_limits(const u8 *&data) {
     const u8 flags = *data;
     data++;
     WasmLimits limits;

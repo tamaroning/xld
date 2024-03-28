@@ -17,7 +17,9 @@
 #pragma once
 
 #include "common/integers.h"
+#include <optional>
 #include <string>
+#include <vector>
 
 namespace xld::wasm {
 
@@ -254,7 +256,7 @@ struct WasmObjectHeader {
 static_assert(sizeof(WasmObjectHeader) == 8);
 
 // Subset of types that a value can have
-enum class ValType: u8 {
+enum class ValType : u8 {
     I32 = WASM_TYPE_I32,
     I64 = WASM_TYPE_I64,
     F32 = WASM_TYPE_F32,
@@ -286,12 +288,62 @@ struct WasmTableType {
 struct WasmImport {
     std::string module;
     std::string field;
-    u8 kind;
+    uint8_t kind;
     union {
         uint32_t sig_index;
         WasmGlobalType global;
         WasmTableType table;
         WasmLimits memory;
+    };
+};
+
+struct WasmRelocation {
+    uint8_t type;    // The type of the relocation.
+    uint32_t index;  // Index into either symbol or type index space.
+    uint64_t offset; // Offset from the start of the section.
+    int64_t addend;  // A value to add to the symbol.
+};
+
+struct WasmInitFunc {
+    uint32_t priority;
+    uint32_t symbol;
+};
+
+// Info from the linking metadata section of a wasm object file.
+struct WasmLinkingData {
+    uint32_t version;
+    std::vector<WasmInitFunc> init_functions;
+    std::vector<std::string> comdats;
+    // The linking section also contains a symbol table. This info (represented
+    // in a WasmSymbolInfo struct) is stored inside the WasmSymbol object
+    // instead of in this structure; this allows vectors of WasmSymbols and
+    // WasmLinkingDatas to be reallocated.
+};
+
+// Represents the location of a Wasm data symbol within a WasmDataSegment, as
+// the index of the segment, and the offset and size within the segment.
+struct WasmDataReference {
+    uint32_t Segment;
+    uint64_t Offset;
+    uint64_t Size;
+};
+
+struct WasmSymbolInfo {
+    std::string Name;
+    uint8_t kind;
+    uint32_t flags;
+    // For undefined symbols the module of the import
+    std::optional<std::string> import_module;
+    // For undefined symbols the name of the import
+    std::optional<std::string> import_Nname;
+    // For symbols to be exported from the final module
+    std::optional<std::string> export_name;
+    union {
+        // For function, table, or global symbols, the index in function, table,
+        // or global index space.
+        uint32_t element_index;
+        // For a data symbols, the address of the data relative to segment.
+        WasmDataReference data_ref;
     };
 };
 
