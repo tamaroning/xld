@@ -72,6 +72,12 @@ class ObjectFile : public InputFile<E> {
     std::vector<std::span<const u8>> codes;
 
     // data section
+
+    // linking section
+
+    // symbol table
+    std::vector<Symbol<E>> symbols;
+    
 };
 
 } // namespace xld::wasm

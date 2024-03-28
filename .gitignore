@@ -4,3 +4,7 @@ build/
 .clangd
 *.o
 *.wat
+
+# for my offline references
+linking.md
+llvmwasm.h

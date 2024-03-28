@@ -1,3 +1,4 @@
+#include "common/integers.h"
 #include "common/leb128.h"
 #include "common/system.h"
 #include "section.h"
@@ -5,8 +6,20 @@
 #include "wasm.h"
 #include "xld.h"
 #include <functional>
+#include <optional>
 
 namespace xld::wasm {
+
+// If we haven't seen the same `key` before, create a new instance
+// of Symbol and returns it. Otherwise, returns the previously-
+// instantiated object. `key` is usually the same as `name`.
+template <typename E>
+Symbol<E> *get_symbol(Context<E> &ctx, std::string_view key,
+                      std::string_view name) {
+    typename decltype(ctx.symbol_map)::const_accessor acc;
+    ctx.symbol_map.insert(acc, {key, Symbol<E>(name)});
+    return const_cast<Symbol<E> *>(&acc->second);
+}
 
 template <typename E>
 InputFile<E>::InputFile(Context<E> &ctx, MappedFile *mf)
@@ -129,7 +142,75 @@ std::string_view sec_id_as_str(u8 sec_id) {
 template <typename E>
 void ObjectFile<E>::parse_linking_sec(Context<E> &ctx,
                                       std::span<const u8> bytes) {
-    Warn(ctx) << "TODO: parse linking";
+    const u8 *p = bytes.data();
+    u64 version = decodeULEB128AndInc(p);
+    if (version != 2)
+        Fatal(ctx) << "linking version must be 2";
+
+    while (p < bytes.data() + bytes.size()) {
+        u8 type = *p;
+        p++;
+        u64 payload_len = decodeULEB128AndInc(p);
+        Debug(ctx) << "linking entry type: " << (int)type;
+
+        // FIXME:
+
+        switch (type) {
+        case WASM_SYMBOL_TABLE: {
+            u64 count = decodeULEB128AndInc(p);
+            Debug(ctx) << "symbol table count: " << count;
+            for (int j = 0; j < count; j++) {
+                WasmSymbolType type{*p};
+                p++;
+                u32 flags = decodeULEB128AndInc(p);
+
+                // FIXME: broken pointer
+
+                WasmSymbolInfo info;
+                if (flags & WASM_SYMBOL_UNDEFINED) {
+                    // this symbol references import
+                    // index of import object
+                    u32 index = decodeULEB128AndInc(p);
+                    std::string name = parse_name(p);
+                    info = WasmSymbolInfo{name,
+                                          type,
+                                          flags,
+                                          std::nullopt,
+                                          std::nullopt,
+                                          std::nullopt,
+                                          {.element_index = index}};
+                } else if (type == WASM_SYMBOL_TYPE_DATA) {
+                    std::string name = parse_name(p);
+                    // index of segment
+                    u32 segment = decodeULEB128AndInc(p);
+                    u32 offset = decodeULEB128AndInc(p);
+                    u32 size = decodeULEB128AndInc(p);
+                    info =
+                        WasmSymbolInfo{name,
+                                       type,
+                                       flags,
+                                       std::nullopt,
+                                       std::nullopt,
+                                       std::nullopt,
+                                       {.data_ref = {segment, offset, size}}};
+                } else if (type == WASM_SYMBOL_TYPE_SECTION) {
+                    u32 section = decodeULEB128AndInc(p);
+                    Error(ctx) << "TODO: parse section symbol table";
+                    return;
+                } else {
+                    Error(ctx)
+                        << "unknown symbol type: " << (int)type << ", ignored";
+                }
+                Debug(ctx) << "push symbol: " << info.name;
+                this->symbols.push_back(Symbol(info, this));
+            }
+        } break;
+        default: {
+            Error(ctx) << "unknown linking entry type: " << (int)type;
+            return;
+        }
+        }
+    }
 }
 
 template <typename E>
@@ -261,24 +342,23 @@ void ObjectFile<E>::dump(Context<E> &ctx) {
                    << ", size=0x" << sec->content.size() << ")";
         switch (sec->sec_id) {
         case WASM_SEC_TYPE: {
-            for (auto &ft : this->func_types) {
-                const u8 *data = ft.data();
-                ASSERT(*data == 0x60 && "type section must start with 0x60");
-                data++;
-                std::vector<u8> param_types = parse_vec<u8>(data);
-                std::vector<u8> result_types = parse_vec<u8>(data);
-                std::cout << "param_types: ";
-                for (auto &t : param_types) {
-                    std::cout << (int)t << " ";
-                }
-                std::cout << "\n";
-                std::cout << "result_types: ";
-                for (auto &t : result_types) {
-                    std::cout << (int)t << " ";
-                }
-                std::cout << "\n";
+            for (int i = 0; i < this->func_types.size(); i++) {
+                Debug(ctx) << "  - type[" << i << "]";
             }
         } break;
+        case WASM_SEC_IMPORT: {
+            for (int i = 0; i < this->imports.size(); i++) {
+                Debug(ctx) << "  - import[" << i << "]";
+            }
+        } break;
+        case WASM_SEC_CUSTOM: {
+            if (sec->name == "linking") {
+                for (int i = 0; i < this->symbols.size(); i++) {
+                    auto sym = this->symbols[i];
+                    Debug(ctx) << "  - symbol[" << i << "]: " << sym.info.name;
+                }
+            }
+        }
         }
     }
     Debug(ctx) << "=== Dump Ends ===";

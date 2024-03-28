@@ -52,3 +52,20 @@ using namespace oneapi;
             std::abort();                                                      \
         }                                                                      \
     } while (0)
+
+// TODO: Use xxHash
+/*
+inline uint64_t hash_string(std::string_view str) {
+    return XXH3_64bits(str.data(), str.size());
+}
+
+class HashCmp {
+  public:
+    static size_t hash(const std::string_view &k) { return hash_string(k); }
+
+    static bool equal(const std::string_view &k1, const std::string_view &k2) {
+        return k1 == k2;
+    }
+};
+
+*/

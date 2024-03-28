@@ -2,6 +2,7 @@
 
 #include "common/mmap.h"
 #include "common/system.h"
+#include "wao.h"
 
 namespace xld::wasm {
 
@@ -152,6 +153,15 @@ template <typename E>
 int wasm_main(int argc, char **argv);
 
 template <typename E>
+class Symbol {
+  public:
+    Symbol(WasmSymbolInfo info, ObjectFile<E> *obj) : info(info), obj(obj) {}
+
+    WasmSymbolInfo info;
+    ObjectFile<E> *obj = nullptr;
+};
+
+template <typename E>
 struct Context {
     Context() {}
 
@@ -168,6 +178,10 @@ struct Context {
 
     tbb::concurrent_vector<std::unique_ptr<ObjectFile<E>>> obj_pool;
     tbb::concurrent_vector<std::unique_ptr<MappedFile>> mf_pool;
+
+    // Symbol table
+    // TODO: use xxHash
+    tbb::concurrent_hash_map<std::string_view, Symbol<E>> symbol_map;
 
     // Input files
     std::vector<ObjectFile<E> *> objs;

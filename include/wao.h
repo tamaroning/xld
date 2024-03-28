@@ -225,6 +225,7 @@ enum WasmTagAttribute : uint8_t {
     WASM_TAG_ATTRIBUTE_EXCEPTION = 0x0,
 };
 
+// Should rename these to WASM_SYM_*?
 const unsigned WASM_SYMBOL_BINDING_MASK = 0x3;
 const unsigned WASM_SYMBOL_VISIBILITY_MASK = 0xc;
 
@@ -323,19 +324,20 @@ struct WasmLinkingData {
 // Represents the location of a Wasm data symbol within a WasmDataSegment, as
 // the index of the segment, and the offset and size within the segment.
 struct WasmDataReference {
-    uint32_t Segment;
-    uint64_t Offset;
-    uint64_t Size;
+    uint32_t segment;
+    uint64_t offset;
+    uint64_t size;
 };
 
 struct WasmSymbolInfo {
-    std::string Name;
-    uint8_t kind;
+    std::string name;
+    // symtype
+    WasmSymbolType type;
     uint32_t flags;
     // For undefined symbols the module of the import
     std::optional<std::string> import_module;
     // For undefined symbols the name of the import
-    std::optional<std::string> import_Nname;
+    std::optional<std::string> import_name;
     // For symbols to be exported from the final module
     std::optional<std::string> export_name;
     union {
