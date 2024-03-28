@@ -2,6 +2,7 @@
 
 #include "common/mmap.h"
 #include "section.h"
+#include "wao.h"
 #include "xld.h"
 
 namespace xld::wasm {
@@ -34,6 +35,12 @@ class ObjectFile : public InputFile<E> {
 
     void parse(Context<E> &ctx);
 
+    void parse_linking_sec(Context<E> &ctx, std::span<const u8> bytes);
+
+    void parse_reloc_sec(Context<E> &ctx, std::span<const u8> bytes);
+
+    void dump(Context<E> &ctx);
+
   private:
     ObjectFile(Context<E> &ctx, MappedFile *mf);
 
@@ -42,6 +49,7 @@ class ObjectFile : public InputFile<E> {
     // span contains the first 0x60
     std::vector<std::span<const u8>> func_types;
     // import section
+    std::vector<WasmImport> imports;
 
     // func section
     std::vector<u64> func_sec_type_indices;
@@ -61,6 +69,7 @@ class ObjectFile : public InputFile<E> {
     // data count section
 
     // code section
+    std::vector<std::span<const u8>> codes;
 
     // data section
 };

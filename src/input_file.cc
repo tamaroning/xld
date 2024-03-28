@@ -51,10 +51,7 @@ std::vector<T> parse_vec_varlen(const u8 *data,
 template <typename T>
 std::vector<T> parse_vec(const u8 *data) {
     u64 num = decodeULEB128AndInc(data);
-    if (num == 0)
-        return std::vector<T>();
     std::vector<T> vec{data, data + sizeof(T) * num};
-    assert(vec.size() == num);
     return vec;
 }
 
@@ -125,17 +122,28 @@ std::string_view sec_id_as_str(u8 sec_id) {
 }
 
 template <typename E>
+void ObjectFile<E>::parse_linking_sec(Context<E> &ctx,
+                                      std::span<const u8> bytes) {
+    Warn(ctx) << "TODO: parse linking";
+}
+
+template <typename E>
+void ObjectFile<E>::parse_reloc_sec(Context<E> &ctx,
+                                    std::span<const u8> bytes) {
+    Warn(ctx) << "TODO: parse reloc";
+}
+
+template <typename E>
 void ObjectFile<E>::parse(Context<E> &ctx) {
     u8 *data = this->mf->data;
     const u8 *p = data + sizeof(WasmObjectHeader);
 
     while (p - data < this->mf->size) {
-        Debug(ctx) << "offset: " << (p - data);
         u8 sec_id = *p;
         p++;
         u64 content_size = decodeULEB128AndInc(p);
 
-        std::string name = "<unknown>";
+        std::string name{"<unknown>"};
         const u8 *content_beg = p;
         std::span<const u8> content{content_beg, content_beg + content_size};
         u64 content_ofs = p - data;
@@ -146,12 +154,14 @@ void ObjectFile<E>::parse(Context<E> &ctx) {
             name = parse_name(p);
             // parse byte:
             u64 byte_size = content_size - (p - content_beg);
-            std::vector<u8> bytes{p, p + byte_size};
+            std::span<const u8> bytes{p, p + byte_size};
             // TODO: use result
             if (name == "linking") {
-                Warn(ctx) << "TODO: parse linking";
-            } else if (name.starts_with("reloc.")) {
-                Warn(ctx) << "TODO: parse reloc";
+                parse_linking_sec(ctx, bytes);
+            } else if (name.starts_with("reloc")) {
+                parse_reloc_sec(ctx, bytes);
+            } else {
+                Warn(ctx) << "custom section: " << name << " ignored";
             }
         } break;
         case WASM_SEC_TYPE: {
@@ -160,7 +170,6 @@ void ObjectFile<E>::parse(Context<E> &ctx) {
                     const u8 *type_begin = data;
                     ASSERT(*data == 0x60 &&
                            "type section must start with 0x60");
-                    std::cout << "OK";
                     data++;
                     // discard results
                     std::vector<u8> param_types = parse_vec<u8>(data);
@@ -209,23 +218,65 @@ void ObjectFile<E>::parse(Context<E> &ctx) {
                     unreachable();
                 }
             };
-            std::vector<WasmImport> imports = parse_vec_varlen(data, f);
+            this->imports = parse_vec_varlen(data, f);
         } break;
         case WASM_SEC_FUNCTION: {
             this->func_sec_type_indices = parse_uleb128_vec(ctx, p);
         } break;
+        case WASM_SEC_CODE: {
+            std::function<std::span<const u8>(const u8 *)> f =
+                [](const u8 *data) {
+                    const u8 *code_start = data;
+                    u64 size = decodeULEB128AndInc(data);
+                    std::span<const u8> code{code_start, data + size};
+                    return code;
+                };
+            this->codes = parse_vec_varlen(p, f);
+        } break;
         default:
-            Warn(ctx) << "section: " << sec_id_as_str(sec_id) << "(" << name
-                      << ") ignored";
+            Fatal(ctx) << "section: " << sec_id_as_str(sec_id) << "(" << name
+                       << ") ignored";
+
             break;
         }
-        Debug(ctx) << "section: " << sec_id_as_str(sec_id) << "(" << name << ")"
-                   << " size=" << content_size;
-
         this->sections.push_back(std::unique_ptr<InputSection<E>>(
             new InputSection(sec_id, content, this, content_ofs, name)));
         p = content_beg + content_size;
     }
+
+    this->dump(ctx);
+}
+
+template <typename E>
+void ObjectFile<E>::dump(Context<E> &ctx) {
+    Debug(ctx) << "=== Dump Starts ===";
+    for (auto &sec : this->sections) {
+        Debug(ctx) << std::hex << "Section: " << sec_id_as_str(sec->sec_id)
+                   << "(name=" << sec->name << ", offset=0x" << sec->file_ofs
+                   << ", size=0x" << sec->content.size() << ")";
+        switch (sec->sec_id) {
+        case WASM_SEC_TYPE: {
+            for (auto &ft : this->func_types) {
+                const u8 *data = ft.data();
+                ASSERT(*data == 0x60 && "type section must start with 0x60");
+                data++;
+                std::vector<u8> param_types = parse_vec<u8>(data);
+                std::vector<u8> result_types = parse_vec<u8>(data);
+                std::cout << "param_types: ";
+                for (auto &t : param_types) {
+                    std::cout << (int)t << " ";
+                }
+                std::cout << "\n";
+                std::cout << "result_types: ";
+                for (auto &t : result_types) {
+                    std::cout << (int)t << " ";
+                }
+                std::cout << "\n";
+            }
+        } break;
+        }
+    }
+    Debug(ctx) << "=== Dump Ends ===";
 }
 
 using E = WASM32;
