@@ -153,8 +153,6 @@ void ObjectFile<E>::parse_linking_sec(Context<E> &ctx,
         u64 payload_len = decodeULEB128AndInc(p);
         Debug(ctx) << "linking entry type: " << (int)type;
 
-        // FIXME:
-
         switch (type) {
         case WASM_SYMBOL_TABLE: {
             u64 count = decodeULEB128AndInc(p);
