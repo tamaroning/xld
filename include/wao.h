@@ -1,4 +1,5 @@
 // Web Assembly Object format
+// https://github.com/llvm/llvm-project/blob/main/llvm/include/llvm/BinaryFormat/Wasm.h
 
 //===- Wasm.h - Wasm object file format -------------------------*- C++ -*-===//
 //
@@ -13,7 +14,10 @@
 //
 //===----------------------------------------------------------------------===//
 
+#pragma once
+
 #include "common/integers.h"
+#include <string>
 
 namespace xld::wasm {
 
@@ -250,7 +254,7 @@ struct WasmObjectHeader {
 static_assert(sizeof(WasmObjectHeader) == 8);
 
 // Subset of types that a value can have
-enum class ValType {
+enum class ValType: u8 {
     I32 = WASM_TYPE_I32,
     I64 = WASM_TYPE_I64,
     F32 = WASM_TYPE_F32,
@@ -261,6 +265,34 @@ enum class ValType {
     // Unmodeled value types include ref types with heap types other than
     // func or extern, and type-specialized funcrefs
     OTHERREF = 0xff,
+};
+
+struct WasmGlobalType {
+    ValType type;
+    bool mut;
+};
+
+struct WasmLimits {
+    uint8_t flags;
+    uint64_t minimum;
+    uint64_t maximum;
+};
+
+struct WasmTableType {
+    ValType elem_type;
+    WasmLimits limits;
+};
+
+struct WasmImport {
+    std::string module;
+    std::string field;
+    u8 kind;
+    union {
+        uint32_t sig_index;
+        WasmGlobalType global;
+        WasmTableType table;
+        WasmLimits memory;
+    };
 };
 
 } // namespace xld::wasm

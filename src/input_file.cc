@@ -1,8 +1,10 @@
 #include "common/leb128.h"
+#include "common/system.h"
 #include "section.h"
 #include "wao.h"
 #include "wasm.h"
 #include "xld.h"
+#include <functional>
 
 namespace xld::wasm {
 
@@ -33,8 +35,21 @@ ObjectFile<E> *ObjectFile<E>::create(Context<E> &ctx, MappedFile *mf) {
     return obj;
 }
 
-template <typename T, typename E>
-std::vector<T> parse_vec(Context<E> &ctx, const u8 *data) {
+// Can be used for variable-length elements
+template <typename T>
+std::vector<T> parse_vec_varlen(const u8 *data,
+                                std::function<T(const u8 *)> f) {
+    u64 num = decodeULEB128AndInc(data);
+    std::vector<T> v;
+    for (int i = 0; i < num; i++) {
+        v.push_back(f(data));
+    }
+    return v;
+}
+
+// Only can be used for fix-length elements
+template <typename T>
+std::vector<T> parse_vec(const u8 *data) {
     u64 num = decodeULEB128AndInc(data);
     if (num == 0)
         return std::vector<T>();
@@ -51,6 +66,27 @@ std::vector<u64> parse_uleb128_vec(Context<E> &ctx, const u8 *data) {
         v.push_back(decodeULEB128AndInc(data));
     }
     return v;
+}
+
+std::string parse_name(const u8 *data) {
+    u64 num = decodeULEB128AndInc(data);
+    std::string name{data, data + num};
+    return name;
+}
+
+WasmLimits parse_limits(const u8 *data) {
+    const u8 flags = *data;
+    data++;
+    WasmLimits limits;
+    if (flags & WASM_LIMITS_FLAG_HAS_MAX) {
+        u64 min = decodeULEB128AndInc(data);
+        u64 max = decodeULEB128AndInc(data);
+        limits = WasmLimits{flags, min, max};
+    } else {
+        u64 min = decodeULEB128AndInc(data);
+        limits = WasmLimits{flags, min, 0};
+    }
+    return limits;
 }
 
 std::string_view sec_id_as_str(u8 sec_id) {
@@ -94,44 +130,101 @@ void ObjectFile<E>::parse(Context<E> &ctx) {
     const u8 *p = data + sizeof(WasmObjectHeader);
 
     while (p - data < this->mf->size) {
+        Debug(ctx) << "offset: " << (p - data);
         u8 sec_id = *p;
-        p += 1;
-        u64 size = decodeULEB128AndInc(p);
+        p++;
+        u64 content_size = decodeULEB128AndInc(p);
 
         std::string name = "<unknown>";
+        const u8 *content_beg = p;
+        std::span<const u8> content{content_beg, content_beg + content_size};
+        u64 content_ofs = p - data;
+
         switch (sec_id) {
         case WASM_SEC_CUSTOM: {
             const u8 *cont_begin = p;
-            std::vector<char> name_vec = parse_vec<char>(ctx, p);
-            name = std::string(name_vec.begin(), name_vec.end());
+            name = parse_name(p);
             // parse byte:
-            u64 byte_size = size - name.size();
+            u64 byte_size = content_size - (p - content_beg);
             std::vector<u8> bytes{p, p + byte_size};
-
+            // TODO: use result
             if (name == "linking") {
                 Warn(ctx) << "TODO: parse linking";
             } else if (name.starts_with("reloc.")) {
                 Warn(ctx) << "TODO: parse reloc";
             }
-            p = cont_begin + size;
+        } break;
+        case WASM_SEC_TYPE: {
+            std::function<std::span<const u8>(const u8 *)> f =
+                [](const u8 *data) {
+                    const u8 *type_begin = data;
+                    ASSERT(*data == 0x60 &&
+                           "type section must start with 0x60");
+                    std::cout << "OK";
+                    data++;
+                    // discard results
+                    std::vector<u8> param_types = parse_vec<u8>(data);
+                    std::vector<u8> result_types = parse_vec<u8>(data);
+                    return std::span<const u8>(type_begin, data);
+                };
+            this->func_types = parse_vec_varlen(p, f);
+        } break;
+        case WASM_SEC_IMPORT: {
+            std::function<WasmImport(const u8 *)> f = [](const u8 *data) {
+                std::string module = parse_name(data);
+                std::string field = parse_name(data);
+                u8 kind = *data;
+                data++;
+                switch (kind) {
+                case WASM_EXTERNAL_FUNCTION: {
+                    u32 sig_index = decodeULEB128AndInc(data);
+                    return WasmImport{
+                        module, field, kind, {.sig_index = sig_index}};
+                } break;
+                case WASM_EXTERNAL_TABLE: {
+                    // parse reftype
+                    ValType reftype{*data};
+                    data++;
+                    // parse limits
+                    const u8 flags = *data;
+                    data++;
+                    WasmLimits limits = parse_limits(data);
+                    WasmTableType table{reftype, limits};
+                    return WasmImport{module, field, kind, {.table = table}};
+                } break;
+                case WASM_EXTERNAL_MEMORY: {
+                    WasmLimits limits = parse_limits(data);
+                    return WasmImport{module, field, kind, {.memory = limits}};
+                } break;
+                case WASM_EXTERNAL_GLOBAL: {
+                    const ValType val_type{*data};
+                    data++;
+                    const bool mut = *data;
+                    data++;
+                    WasmGlobalType global{val_type, mut};
+                    return WasmImport{module, field, kind, {.global = global}};
+                } break;
+                default:
+                    ASSERT(0 && "unknown import kind");
+                    unreachable();
+                }
+            };
+            std::vector<WasmImport> imports = parse_vec_varlen(data, f);
         } break;
         case WASM_SEC_FUNCTION: {
-            std::vector<u64> type_indices = parse_uleb128_vec(ctx, p);
-            for (auto idx : type_indices) {
-                Debug(ctx) << "type index: " << idx;
-            }
-
+            this->func_sec_type_indices = parse_uleb128_vec(ctx, p);
         } break;
         default:
-            // Warn(ctx) << "section id=" << (u32)sec_id << " is not supported";
-            p += size;
+            Warn(ctx) << "section: " << sec_id_as_str(sec_id) << "(" << name
+                      << ") ignored";
             break;
         }
         Debug(ctx) << "section: " << sec_id_as_str(sec_id) << "(" << name << ")"
-                   << " size=" << size;
+                   << " size=" << content_size;
 
         this->sections.push_back(std::unique_ptr<InputSection<E>>(
-            new InputSection(sec_id, p, size, this, p - data, name)));
+            new InputSection(sec_id, content, this, content_ofs, name)));
+        p = content_beg + content_size;
     }
 }
 

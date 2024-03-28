@@ -38,6 +38,31 @@ class ObjectFile : public InputFile<E> {
     ObjectFile(Context<E> &ctx, MappedFile *mf);
 
     std::vector<std::unique_ptr<InputSection<E>>> sections;
+    // (func) type section
+    // span contains the first 0x60
+    std::vector<std::span<const u8>> func_types;
+    // import section
+
+    // func section
+    std::vector<u64> func_sec_type_indices;
+
+    // table section
+
+    // memory section
+
+    // global section
+
+    // export section
+
+    // start section
+
+    // elem section
+
+    // data count section
+
+    // code section
+
+    // data section
 };
 
 } // namespace xld::wasm
