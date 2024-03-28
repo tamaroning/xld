@@ -44,6 +44,51 @@ std::vector<T> parse_vec(Context<E> &ctx, const u8 *data) {
 }
 
 template <typename E>
+std::vector<u64> parse_uleb128_vec(Context<E> &ctx, const u8 *data) {
+    u64 num = decodeULEB128AndInc(data);
+    std::vector<u64> v;
+    for (int i = 0; i < num; i++) {
+        v.push_back(decodeULEB128AndInc(data));
+    }
+    return v;
+}
+
+std::string_view sec_id_as_str(u8 sec_id) {
+    switch (sec_id) {
+    case WASM_SEC_CUSTOM:
+        return "custom";
+    case WASM_SEC_TYPE:
+        return "type";
+    case WASM_SEC_IMPORT:
+        return "import";
+    case WASM_SEC_FUNCTION:
+        return "function";
+    case WASM_SEC_TABLE:
+        return "table";
+    case WASM_SEC_MEMORY:
+        return "memory";
+    case WASM_SEC_GLOBAL:
+        return "global";
+    case WASM_SEC_EXPORT:
+        return "export";
+    case WASM_SEC_START:
+        return "start";
+    case WASM_SEC_ELEM:
+        return "elem";
+    case WASM_SEC_CODE:
+        return "code";
+    case WASM_SEC_DATA:
+        return "data";
+    case WASM_SEC_DATACOUNT:
+        return "datacount";
+    case WASM_SEC_TAG:
+        return "tag";
+    default:
+        return "<unknown>";
+    }
+}
+
+template <typename E>
 void ObjectFile<E>::parse(Context<E> &ctx) {
     u8 *data = this->mf->data;
     const u8 *p = data + sizeof(WasmObjectHeader);
@@ -53,21 +98,40 @@ void ObjectFile<E>::parse(Context<E> &ctx) {
         p += 1;
         u64 size = decodeULEB128AndInc(p);
 
-        std::string_view name = "<unknown>";
+        std::string name = "<unknown>";
         switch (sec_id) {
         case WASM_SEC_CUSTOM: {
+            const u8 *cont_begin = p;
             std::vector<char> name_vec = parse_vec<char>(ctx, p);
-            name = std::string_view(name_vec.begin(), name_vec.end());
+            name = std::string(name_vec.begin(), name_vec.end());
+            // parse byte:
+            u64 byte_size = size - name.size();
+            std::vector<u8> bytes{p, p + byte_size};
+
+            if (name == "linking") {
+                Warn(ctx) << "TODO: parse linking";
+            } else if (name.starts_with("reloc.")) {
+                Warn(ctx) << "TODO: parse reloc";
+            }
+            p = cont_begin + size;
+        } break;
+        case WASM_SEC_FUNCTION: {
+            std::vector<u64> type_indices = parse_uleb128_vec(ctx, p);
+            for (auto idx : type_indices) {
+                Debug(ctx) << "type index: " << idx;
+            }
+
         } break;
         default:
             // Warn(ctx) << "section id=" << (u32)sec_id << " is not supported";
+            p += size;
             break;
         }
+        Debug(ctx) << "section: " << sec_id_as_str(sec_id) << "(" << name << ")"
+                   << " size=" << size;
 
         this->sections.push_back(std::unique_ptr<InputSection<E>>(
             new InputSection(sec_id, p, size, this, p - data, name)));
-
-        p += size;
     }
 }
 
