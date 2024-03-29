@@ -150,34 +150,49 @@ void ObjectFile<E>::parse_linking_sec(Context<E> &ctx,
     while (p < bytes.data() + bytes.size()) {
         u8 type = *p;
         p++;
+        // TODO: use result
         u64 payload_len = decodeULEB128AndInc(p);
-        Debug(ctx) << "linking entry type: " << (int)type;
 
         switch (type) {
         case WASM_SYMBOL_TABLE: {
             u64 count = decodeULEB128AndInc(p);
             Debug(ctx) << "symbol table count: " << count;
+
             for (int j = 0; j < count; j++) {
                 WasmSymbolType type{*p};
                 p++;
+                Debug(ctx) << "symtype: " << (int)type;
                 u32 flags = decodeULEB128AndInc(p);
 
-                // FIXME: broken pointer
-
                 WasmSymbolInfo info;
-                if (flags & WASM_SYMBOL_UNDEFINED) {
-                    // this symbol references import
-                    // index of import object
+                switch (type) {
+                case WASM_SYMBOL_TYPE_FUNCTION:
+                case WASM_SYMBOL_TYPE_TABLE:
+                case WASM_SYMBOL_TYPE_GLOBAL: {
                     u32 index = decodeULEB128AndInc(p);
                     std::string name = parse_name(p);
+                    std::optional<std::string> import_module;
+                    std::optional<std::string> import_name;
+
+                    if ((flags & WASM_SYMBOL_UNDEFINED) &&
+                        !(flags & WASM_SYMBOL_EXPLICIT_NAME)) {
+                        // name is taken from the import
+                        if (index >= this->imports.size())
+                            Fatal(ctx)
+                                << "index=" << index
+                                << " in syminfo is larger than import size";
+                        import_module = this->imports[index].module;
+                        import_name = this->imports[index].field;
+                    }
                     info = WasmSymbolInfo{name,
                                           type,
                                           flags,
-                                          std::nullopt,
-                                          std::nullopt,
+                                          import_module,
+                                          import_name,
                                           std::nullopt,
                                           {.element_index = index}};
-                } else if (type == WASM_SYMBOL_TYPE_DATA) {
+                } break;
+                case WASM_SYMBOL_TYPE_DATA: {
                     std::string name = parse_name(p);
                     // index of segment
                     u32 segment = decodeULEB128AndInc(p);
@@ -191,15 +206,13 @@ void ObjectFile<E>::parse_linking_sec(Context<E> &ctx,
                                        std::nullopt,
                                        std::nullopt,
                                        {.data_ref = {segment, offset, size}}};
-                } else if (type == WASM_SYMBOL_TYPE_SECTION) {
-                    u32 section = decodeULEB128AndInc(p);
-                    Error(ctx) << "TODO: parse section symbol table";
-                    return;
-                } else {
+                } break;
+                default: {
                     Error(ctx)
                         << "unknown symbol type: " << (int)type << ", ignored";
                 }
-                Debug(ctx) << "push symbol: " << info.name;
+                }
+
                 this->symbols.push_back(Symbol(info, this));
             }
         } break;
@@ -227,7 +240,8 @@ void ObjectFile<E>::parse(Context<E> &ctx) {
         p++;
         u64 content_size = decodeULEB128AndInc(p);
 
-        std::string name{"<unknown>"};
+        std::string sec_name{sec_id_as_str(sec_id)};
+        Debug(ctx) << "parsing " << sec_name;
         const u8 *content_beg = p;
         std::span<const u8> content{content_beg, content_beg + content_size};
         u64 content_ofs = p - data;
@@ -235,17 +249,15 @@ void ObjectFile<E>::parse(Context<E> &ctx) {
         switch (sec_id) {
         case WASM_SEC_CUSTOM: {
             const u8 *cont_begin = p;
-            name = parse_name(p);
-            // parse byte:
+            sec_name = parse_name(p);
             u64 byte_size = content_size - (p - content_beg);
             std::span<const u8> bytes{p, p + byte_size};
-            // TODO: use result
-            if (name == "linking") {
+            if (sec_name == "linking") {
                 parse_linking_sec(ctx, bytes);
-            } else if (name.starts_with("reloc")) {
+            } else if (sec_name.starts_with("reloc.")) {
                 parse_reloc_sec(ctx, bytes);
             } else {
-                Warn(ctx) << "custom section: " << name << " ignored";
+                Warn(ctx) << "custom section: " << sec_name << " ignored";
             }
         } break;
         case WASM_SEC_TYPE: {
@@ -302,7 +314,7 @@ void ObjectFile<E>::parse(Context<E> &ctx) {
                     unreachable();
                 }
             };
-            this->imports = parse_vec_varlen(data, f);
+            this->imports = parse_vec_varlen(p, f);
         } break;
         case WASM_SEC_FUNCTION: {
             this->func_sec_type_indices = parse_uleb128_vec(ctx, p);
@@ -318,13 +330,13 @@ void ObjectFile<E>::parse(Context<E> &ctx) {
             this->codes = parse_vec_varlen(p, f);
         } break;
         default:
-            Fatal(ctx) << "section: " << sec_id_as_str(sec_id) << "(" << name
-                       << ") ignored";
+            Fatal(ctx) << "section: " << sec_id_as_str(sec_id) << "("
+                       << sec_name << ") ignored";
 
             break;
         }
         this->sections.push_back(std::unique_ptr<InputSection<E>>(
-            new InputSection(sec_id, content, this, content_ofs, name)));
+            new InputSection(sec_id, content, this, content_ofs, sec_name)));
         p = content_beg + content_size;
     }
 
@@ -333,7 +345,7 @@ void ObjectFile<E>::parse(Context<E> &ctx) {
 
 template <typename E>
 void ObjectFile<E>::dump(Context<E> &ctx) {
-    Debug(ctx) << "=== Dump Starts ===";
+    Debug(ctx) << "=== " << this->mf->name << " ===";
     for (auto &sec : this->sections) {
         Debug(ctx) << std::hex << "Section: " << sec_id_as_str(sec->sec_id)
                    << "(name=" << sec->name << ", offset=0x" << sec->file_ofs
@@ -346,14 +358,21 @@ void ObjectFile<E>::dump(Context<E> &ctx) {
         } break;
         case WASM_SEC_IMPORT: {
             for (int i = 0; i < this->imports.size(); i++) {
-                Debug(ctx) << "  - import[" << i << "]";
+                auto import = this->imports[i];
+                Debug(ctx) << "  - import[" << i << "]: " << import.module
+                           << "." << import.field;
             }
         } break;
         case WASM_SEC_CUSTOM: {
             if (sec->name == "linking") {
                 for (int i = 0; i < this->symbols.size(); i++) {
-                    auto sym = this->symbols[i];
-                    Debug(ctx) << "  - symbol[" << i << "]: " << sym.info.name;
+                    Symbol sym = this->symbols[i];
+                    std::string symname =
+                        sym.info.import_module.has_value()
+                            ? (sym.info.import_module.value() + "." +
+                               sym.info.import_name.value())
+                            : sym.info.name;
+                    Debug(ctx) << "  - symbol[" << i << "]: " << symname;
                 }
             }
         }
