@@ -52,7 +52,7 @@ class ObjectFile : public InputFile<E> {
     std::vector<WasmImport> imports;
 
     // func section
-    std::vector<u64> func_sec_type_indices;
+    std::vector<u32> func_sec_type_indices;
 
     // table section
 
@@ -74,10 +74,11 @@ class ObjectFile : public InputFile<E> {
     // data section
 
     // linking section
-
     // symbol table
     std::vector<Symbol<E>> symbols;
-    
+
+    // reloc.* section
+    // stored in InputSection
 };
 
 } // namespace xld::wasm

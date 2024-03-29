@@ -53,7 +53,7 @@ ObjectFile<E> *ObjectFile<E>::create(Context<E> &ctx, MappedFile *mf) {
 template <typename T>
 std::vector<T> parse_vec_varlen(const u8 *data,
                                 std::function<T(const u8 *&)> f) {
-    u64 num = decodeULEB128AndInc(data);
+    u32 num = decodeULEB128AndInc(data);
     std::vector<T> v;
     for (int i = 0; i < num; i++) {
         v.push_back(f(data));
@@ -64,16 +64,16 @@ std::vector<T> parse_vec_varlen(const u8 *data,
 // Parse vector of fix-length element and increment pointer
 template <typename T>
 std::vector<T> parse_vec(const u8 *&data) {
-    u64 num = decodeULEB128AndInc(data);
+    u32 num = decodeULEB128AndInc(data);
     std::vector<T> vec{data, data + sizeof(T) * num};
     data += sizeof(T) * num;
     return vec;
 }
 
 template <typename E>
-std::vector<u64> parse_uleb128_vec(Context<E> &ctx, const u8 *&data) {
-    u64 num = decodeULEB128AndInc(data);
-    std::vector<u64> v;
+std::vector<u32> parse_uleb128_vec(Context<E> &ctx, const u8 *&data) {
+    u32 num = decodeULEB128AndInc(data);
+    std::vector<u32> v;
     for (int i = 0; i < num; i++) {
         v.push_back(decodeULEB128AndInc(data));
     }
@@ -143,7 +143,7 @@ template <typename E>
 void ObjectFile<E>::parse_linking_sec(Context<E> &ctx,
                                       std::span<const u8> bytes) {
     const u8 *p = bytes.data();
-    u64 version = decodeULEB128AndInc(p);
+    u32 version = decodeULEB128AndInc(p);
     if (version != 2)
         Fatal(ctx) << "linking version must be 2";
 
@@ -151,7 +151,7 @@ void ObjectFile<E>::parse_linking_sec(Context<E> &ctx,
         u8 type = *p;
         p++;
         // TODO: use result
-        u64 payload_len = decodeULEB128AndInc(p);
+        u32 payload_len = decodeULEB128AndInc(p);
 
         switch (type) {
         case WASM_SYMBOL_TABLE: {
@@ -240,7 +240,22 @@ void ObjectFile<E>::parse_linking_sec(Context<E> &ctx,
 template <typename E>
 void ObjectFile<E>::parse_reloc_sec(Context<E> &ctx,
                                     std::span<const u8> bytes) {
-    Warn(ctx) << "TODO: parse reloc";
+    const u8 *p = bytes.data();
+    u32 sec_idx = decodeULEB128AndInc(p);
+    if (sec_idx >= this->sections.size())
+        Fatal(ctx) << "section index in WasmRelocation is corrupsed";
+    u32 count = decodeULEB128AndInc(p);
+    for (int i = 0; i < count; i++) {
+        u8 type = *p;
+        p++;
+        u32 offset = decodeULEB128AndInc(p);
+        u32 index = decodeULEB128AndInc(p);
+        this->sections[sec_idx]->relocs.push_back(WasmRelocation{
+            type,
+            offset,
+            index,
+        });
+    }
 }
 
 template <typename E>
@@ -251,19 +266,19 @@ void ObjectFile<E>::parse(Context<E> &ctx) {
     while (p - data < this->mf->size) {
         u8 sec_id = *p;
         p++;
-        u64 content_size = decodeULEB128AndInc(p);
+        u32 content_size = decodeULEB128AndInc(p);
 
         std::string sec_name{sec_id_as_str(sec_id)};
         Debug(ctx) << "parsing " << sec_name;
         const u8 *content_beg = p;
         std::span<const u8> content{content_beg, content_beg + content_size};
-        u64 content_ofs = p - data;
+        u32 content_ofs = p - data;
 
         switch (sec_id) {
         case WASM_SEC_CUSTOM: {
             const u8 *cont_begin = p;
             sec_name = parse_name(p);
-            u64 byte_size = content_size - (p - content_beg);
+            u32 byte_size = content_size - (p - content_beg);
             std::span<const u8> bytes{p, p + byte_size};
             if (sec_name == "linking") {
                 parse_linking_sec(ctx, bytes);
@@ -335,7 +350,7 @@ void ObjectFile<E>::parse(Context<E> &ctx) {
             std::function<std::span<const u8>(const u8 *&)> f =
                 [&](const u8 *&data) {
                     const u8 *code_start = data;
-                    u64 size = decodeULEB128AndInc(data);
+                    u32 size = decodeULEB128AndInc(data);
                     std::span<const u8> code{code_start, data + size};
                     return code;
                 };
@@ -400,6 +415,8 @@ void ObjectFile<E>::dump(Context<E> &ctx) {
             }
         }
         }
+        if (sec->relocs.size())
+            Debug(ctx) << "  - num relocs: " << sec->relocs.size();
     }
     Debug(ctx) << "=== Dump Ends ===";
 }

@@ -19,6 +19,7 @@ class InputSection {
     ObjectFile<E> *file;
     // offset to the secton content
     u64 file_ofs = 0;
+    std::vector<WasmRelocation> relocs;
 };
 
 } // namespace xld::wasm
