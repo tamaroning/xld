@@ -52,7 +52,7 @@ ObjectFile<E> *ObjectFile<E>::create(Context<E> &ctx, MappedFile *mf) {
 // f needs to increment pointer
 template <typename T>
 std::vector<T> parse_vec_varlen(const u8 *data,
-                                std::function<T(const u8 *)> f) {
+                                std::function<T(const u8 *&)> f) {
     u64 num = decodeULEB128AndInc(data);
     std::vector<T> v;
     for (int i = 0; i < num; i++) {
@@ -169,21 +169,39 @@ void ObjectFile<E>::parse_linking_sec(Context<E> &ctx,
                 case WASM_SYMBOL_TYPE_FUNCTION:
                 case WASM_SYMBOL_TYPE_TABLE:
                 case WASM_SYMBOL_TYPE_GLOBAL: {
+                    bool index_references_import =
+                        (flags & WASM_SYMBOL_UNDEFINED) &&
+                        !(flags & WASM_SYMBOL_EXPLICIT_NAME);
                     u32 index = decodeULEB128AndInc(p);
-                    std::string name = parse_name(p);
+                    std::string name;
                     std::optional<std::string> import_module;
                     std::optional<std::string> import_name;
 
-                    if ((flags & WASM_SYMBOL_UNDEFINED) &&
-                        !(flags & WASM_SYMBOL_EXPLICIT_NAME)) {
+                    if (index_references_import) {
                         // name is taken from the import
-                        if (index >= this->imports.size())
-                            Fatal(ctx)
-                                << "index=" << index
-                                << " in syminfo is larger than import size";
-                        import_module = this->imports[index].module;
-                        import_name = this->imports[index].field;
+                        // linear search in all imports
+                        int current_index = 0;
+                        for (int k = 0;; k++) {
+                            if (k >= this->imports.size())
+                                Fatal(ctx) << "index=" << index
+                                           << " in syminfo is corrupsed";
+                            WasmImport imp = this->imports[k];
+                            if (import_kind_eq_symtype(imp.kind, type)) {
+                                if (current_index == index) {
+                                    import_module = imp.module;
+                                    import_name = imp.field;
+                                    name = imp.module + '.' + imp.field;
+                                    break;
+                                }
+                                current_index++;
+                            }
+                        }
+                        if (!import_module.has_value())
+                            Fatal(ctx) << "Corrupsed index=" << index;
+                    } else {
+                        name = parse_name(p);
                     }
+                    Debug(ctx) << name;
                     info = WasmSymbolInfo{name,
                                           type,
                                           flags,
@@ -261,8 +279,8 @@ void ObjectFile<E>::parse(Context<E> &ctx) {
             }
         } break;
         case WASM_SEC_TYPE: {
-            std::function<std::span<const u8>(const u8 *)> f =
-                [](const u8 *data) {
+            std::function<std::span<const u8>(const u8 *&)> f =
+                [&](const u8 *data) {
                     const u8 *type_begin = data;
                     ASSERT(*data == 0x60 &&
                            "type section must start with 0x60");
@@ -275,9 +293,10 @@ void ObjectFile<E>::parse(Context<E> &ctx) {
             this->func_types = parse_vec_varlen(p, f);
         } break;
         case WASM_SEC_IMPORT: {
-            std::function<WasmImport(const u8 *)> f = [](const u8 *data) {
+            std::function<WasmImport(const u8 *&)> f = [&](const u8 *&data) {
                 std::string module = parse_name(data);
                 std::string field = parse_name(data);
+                std::cout << module << "." << field << "\n";
                 u8 kind = *data;
                 data++;
                 switch (kind) {
@@ -311,7 +330,6 @@ void ObjectFile<E>::parse(Context<E> &ctx) {
                 } break;
                 default:
                     ASSERT(0 && "unknown import kind");
-                    unreachable();
                 }
             };
             this->imports = parse_vec_varlen(p, f);
@@ -320,8 +338,8 @@ void ObjectFile<E>::parse(Context<E> &ctx) {
             this->func_sec_type_indices = parse_uleb128_vec(ctx, p);
         } break;
         case WASM_SEC_CODE: {
-            std::function<std::span<const u8>(const u8 *)> f =
-                [](const u8 *data) {
+            std::function<std::span<const u8>(const u8 *&)> f =
+                [&](const u8 *&data) {
                     const u8 *code_start = data;
                     u64 size = decodeULEB128AndInc(data);
                     std::span<const u8> code{code_start, data + size};

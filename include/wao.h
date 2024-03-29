@@ -17,6 +17,7 @@
 #pragma once
 
 #include "common/integers.h"
+#include "common/system.h"
 #include <optional>
 #include <string>
 #include <vector>
@@ -285,6 +286,20 @@ struct WasmTableType {
     ValType elem_type;
     WasmLimits limits;
 };
+
+inline bool import_kind_eq_symtype(u8 kind, WasmSymbolType symty) {
+    switch (kind) {
+    case 0: // function
+        return symty == WasmSymbolType::WASM_SYMBOL_TYPE_FUNCTION;
+    case 1: // table
+        return symty == WasmSymbolType::WASM_SYMBOL_TYPE_TABLE;
+    case 3: // global
+        return symty == WasmSymbolType::WASM_SYMBOL_TYPE_GLOBAL;
+    case 2: // memory
+    default:
+        return false;
+    }
+}
 
 struct WasmImport {
     std::string module;
