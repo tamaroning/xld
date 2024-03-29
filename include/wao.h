@@ -313,6 +313,12 @@ struct WasmImport {
     };
 };
 
+struct WasmExport {
+    std::string name;
+    uint8_t kind;
+    uint32_t index;
+};
+
 struct WasmRelocation {
     uint8_t type;    // The type of the relocation.
     uint32_t index;  // Index into either symbol or type index space.

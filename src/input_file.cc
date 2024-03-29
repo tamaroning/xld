@@ -226,7 +226,7 @@ void ObjectFile<E>::parse_linking_sec(Context<E> &ctx,
                         << "unknown symbol type: " << (int)type << ", ignored";
                 }
                 }
-                this->symbols.push_back(Symbol(info, this));
+                this->symbols.push_back(info);
             }
         } break;
         default: {
@@ -346,6 +346,15 @@ void ObjectFile<E>::parse(Context<E> &ctx) {
         case WASM_SEC_FUNCTION: {
             this->func_sec_type_indices = parse_uleb128_vec(ctx, p);
         } break;
+        case WASM_SEC_EXPORT: {
+            std::function<WasmExport(const u8 *&)> f = [&](const u8 *&data) {
+                std::string name = parse_name(data);
+                u8 kind = *data;
+                u32 index = decodeULEB128AndInc(data);
+                return WasmExport{name, kind, index};
+            };
+            this->exports = parse_vec_varlen(p, f);
+        } break;
         case WASM_SEC_CODE: {
             std::function<std::span<const u8>(const u8 *&)> f =
                 [&](const u8 *&data) {
@@ -396,6 +405,12 @@ void ObjectFile<E>::dump(Context<E> &ctx) {
                            << "type[" << this->func_sec_type_indices[i] << "]";
             }
         } break;
+        case WASM_SEC_EXPORT: {
+            for (int i = 0; i < this->exports.size(); i++) {
+                Debug(ctx) << "  - export[" << i
+                           << "]: " << this->exports[i].name;
+            }
+        } break;
         case WASM_SEC_CODE: {
             for (int i = 0; i < this->codes.size(); i++) {
                 Debug(ctx) << "  - code[" << i << "]";
@@ -404,12 +419,12 @@ void ObjectFile<E>::dump(Context<E> &ctx) {
         case WASM_SEC_CUSTOM: {
             if (sec->name == "linking") {
                 for (int i = 0; i < this->symbols.size(); i++) {
-                    Symbol sym = this->symbols[i];
+                    WasmSymbolInfo sym = this->symbols[i];
                     std::string symname =
-                        sym.info.import_module.has_value()
-                            ? (sym.info.import_module.value() + "." +
-                               sym.info.import_name.value())
-                            : sym.info.name;
+                        sym.import_module.has_value()
+                            ? (sym.import_module.value() + "." +
+                               sym.import_name.value())
+                            : sym.name;
                     Debug(ctx) << "  - symbol[" << i << "]: " << symname;
                 }
             }

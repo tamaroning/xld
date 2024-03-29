@@ -61,6 +61,7 @@ class ObjectFile : public InputFile<E> {
     // global section
 
     // export section
+    std::vector<WasmExport> exports;
 
     // start section
 
@@ -74,8 +75,7 @@ class ObjectFile : public InputFile<E> {
     // data section
 
     // linking section
-    // symbol table
-    std::vector<Symbol<E>> symbols;
+    std::vector<WasmSymbolInfo> symbols;
 
     // reloc.* section
     // stored in InputSection
