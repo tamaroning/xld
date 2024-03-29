@@ -156,12 +156,9 @@ void ObjectFile<E>::parse_linking_sec(Context<E> &ctx,
         switch (type) {
         case WASM_SYMBOL_TABLE: {
             u64 count = decodeULEB128AndInc(p);
-            Debug(ctx) << "symbol table count: " << count;
-
             for (int j = 0; j < count; j++) {
                 WasmSymbolType type{*p};
                 p++;
-                Debug(ctx) << "symtype: " << (int)type;
                 u32 flags = decodeULEB128AndInc(p);
 
                 WasmSymbolInfo info;
@@ -201,7 +198,6 @@ void ObjectFile<E>::parse_linking_sec(Context<E> &ctx,
                     } else {
                         name = parse_name(p);
                     }
-                    Debug(ctx) << name;
                     info = WasmSymbolInfo{name,
                                           type,
                                           flags,
@@ -230,7 +226,6 @@ void ObjectFile<E>::parse_linking_sec(Context<E> &ctx,
                         << "unknown symbol type: " << (int)type << ", ignored";
                 }
                 }
-
                 this->symbols.push_back(Symbol(info, this));
             }
         } break;
@@ -296,7 +291,6 @@ void ObjectFile<E>::parse(Context<E> &ctx) {
             std::function<WasmImport(const u8 *&)> f = [&](const u8 *&data) {
                 std::string module = parse_name(data);
                 std::string field = parse_name(data);
-                std::cout << module << "." << field << "\n";
                 u8 kind = *data;
                 data++;
                 switch (kind) {
@@ -379,6 +373,17 @@ void ObjectFile<E>::dump(Context<E> &ctx) {
                 auto import = this->imports[i];
                 Debug(ctx) << "  - import[" << i << "]: " << import.module
                            << "." << import.field;
+            }
+        } break;
+        case WASM_SEC_FUNCTION: {
+            for (int i = 0; i < this->func_sec_type_indices.size(); i++) {
+                Debug(ctx) << "  - func[" << i << "]: "
+                           << "type[" << this->func_sec_type_indices[i] << "]";
+            }
+        } break;
+        case WASM_SEC_CODE: {
+            for (int i = 0; i < this->codes.size(); i++) {
+                Debug(ctx) << "  - code[" << i << "]";
             }
         } break;
         case WASM_SEC_CUSTOM: {
