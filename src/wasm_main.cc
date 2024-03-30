@@ -20,6 +20,8 @@ int wasm_main(int argc, char **argv) {
     if (ctx.objs.empty())
         Fatal(ctx) << "no input files\n";
 
+    // https://github.com/llvm/llvm-project/blob/95258419f6fe2e0922c2c0916fd176b9f7361555/lld/wasm/Driver.cpp#L1152C61-L1152C64
+
     // create internal file containing linker-synthesized symbols
     // if (target is not relocatable)
     create_internal_file(ctx);

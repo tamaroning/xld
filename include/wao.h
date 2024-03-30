@@ -353,7 +353,7 @@ struct WasmDataReference {
 struct WasmSymbolInfo {
     std::string name;
     // symtype
-    WasmSymbolType type;
+    WasmSymbolType kind;
     uint32_t flags;
     // For undefined symbols the module of the import
     std::optional<std::string> import_module;
@@ -368,6 +368,22 @@ struct WasmSymbolInfo {
         // For a data symbols, the address of the data relative to segment.
         WasmDataReference data_ref;
     };
+};
+
+struct WasmSignature {
+    std::array<ValType, 1> returns;
+    std::array<ValType, 4> params;
+    // LLVM can parse types other than functions encoded in the type section,
+    // but does not actually model them. Instead a placeholder signature is
+    // created in the Object's signature list.
+    enum { Function, Tag, Placeholder } kind = Function;
+    // Support empty and tombstone instances, needed by DenseMap.
+    enum { Plain, Empty, Tombstone } state = Plain;
+
+    WasmSignature(std::array<ValType, 1> &&in_returns,
+                  std::array<ValType, 4> &&in_params)
+        : returns(in_returns), params(in_params) {}
+    WasmSignature() = default;
 };
 
 } // namespace xld::wasm
