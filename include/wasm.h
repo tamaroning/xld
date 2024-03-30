@@ -57,6 +57,7 @@ class ObjectFile : public InputFile<E> {
     // table section
 
     // memory section
+    std::vector<WasmLimits> memories;
 
     // global section
 

@@ -197,4 +197,7 @@ struct Context {
 template <typename E>
 void resolve_symbols(Context<E> &);
 
+template <typename E>
+void create_internal_file(Context<E> &);
+
 } // namespace xld::wasm
