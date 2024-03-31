@@ -258,6 +258,49 @@ void ObjectFile<E>::parse_reloc_sec(Context<E> &ctx,
     }
 }
 
+// parse initExpr
+// https://github.com/llvm/llvm-project/blob/e6f63a942a45e3545332cd9a43982a69a4d5667b/llvm/lib/Object/WasmObjectFile.cpp#L198
+template <typename E>
+WasmInitExpr ObjectFile<E>::parse_init_expr(Context<E> &ctx, const u8 *&data) {
+    const u8 *const data_beg = data;
+
+    const u8 op = *data;
+    data++;
+
+    bool extended = false;
+    switch (op) {
+    case wasm::WASM_OPCODE_I32_CONST:
+        decodeSLEB128(data);
+        break;
+    case wasm::WASM_OPCODE_I64_CONST:
+        decodeSLEB128(data);
+        break;
+    case wasm::WASM_OPCODE_F32_CONST:
+        // IEEE754 encoded 32bit value
+        data += 4;
+        break;
+    case wasm::WASM_OPCODE_F64_CONST:
+        // IEEE754 encoded 64bit value
+        data += 8;
+        break;
+    case wasm::WASM_OPCODE_GLOBAL_GET:
+        decodeULEB128AndInc(data);
+        break;
+    case wasm::WASM_OPCODE_REF_NULL: {
+        // https://webassembly.github.io/spec/core/binary/instructions.html#reference-instructions
+        data++;
+        break;
+    }
+    default:
+        extended = true;
+    }
+
+    if (extended)
+        Fatal(ctx) << "extended init_expr not supported yet";
+
+    return WasmInitExpr{extended, std::span<const u8>(data_beg, data)};
+}
+
 template <typename E>
 void ObjectFile<E>::parse(Context<E> &ctx) {
     u8 *data = this->mf->data;
@@ -355,6 +398,25 @@ void ObjectFile<E>::parse(Context<E> &ctx) {
             };
             this->exports = parse_vec_varlen(p, f);
         } break;
+        case WASM_SEC_MEMORY: {
+            std::function<WasmLimits(const u8 *&)> f = parse_limits;
+            this->memories = parse_vec_varlen(p, f);
+        } break;
+        case WASM_SEC_GLOBAL: {
+            std::function<WasmGlobal(const u8 *&)> f = [&](const u8 *&data) {
+                const ValType val_type{*data};
+                data++;
+                const bool mut = *data;
+                data++;
+                WasmInitExpr init_expr = parse_init_expr(ctx, data);
+                return WasmGlobal{
+                    {val_type, mut},
+                    init_expr,
+                };
+            };
+            this->globals = parse_vec_varlen(p, f);
+
+        } break;
         case WASM_SEC_CODE: {
             std::function<std::span<const u8>(const u8 *&)> f =
                 [&](const u8 *&data) {
@@ -405,6 +467,9 @@ void ObjectFile<E>::dump(Context<E> &ctx) {
                            << "type[" << this->func_sec_type_indices[i] << "]";
             }
         } break;
+        case WASM_SEC_MEMORY: {
+            // TODO:
+        };
         case WASM_SEC_EXPORT: {
             for (int i = 0; i < this->exports.size(); i++) {
                 Debug(ctx) << "  - export[" << i
@@ -420,11 +485,10 @@ void ObjectFile<E>::dump(Context<E> &ctx) {
             if (sec->name == "linking") {
                 for (int i = 0; i < this->symbols.size(); i++) {
                     WasmSymbolInfo sym = this->symbols[i];
-                    std::string symname =
-                        sym.import_module.has_value()
-                            ? (sym.import_module.value() + "." +
-                               sym.import_name.value())
-                            : sym.name;
+                    std::string symname = sym.import_module.has_value()
+                                              ? (sym.import_module.value() +
+                                                 "." + sym.import_name.value())
+                                              : sym.name;
                     Debug(ctx) << "  - symbol[" << i << "]: " << symname;
                 }
             }

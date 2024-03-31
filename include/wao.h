@@ -271,9 +271,39 @@ enum class ValType : u8 {
     OTHERREF = 0xff,
 };
 
+struct WasmInitExprMVP {
+    uint8_t opcode;
+    union {
+        int32_t int32;
+        int64_t int64;
+        uint32_t float32;
+        uint64_t float64;
+        uint32_t global;
+    } value;
+};
+
+// Extended-const init exprs and exprs with GC types are not explicitly
+// modeled, but the raw body of the expr is attached.
+struct WasmInitExpr {
+    uint8_t extended; // Set to non-zero if extended const is used (i.e. more
+                      // than one instruction)
+    // WasmInitExprMVP inst;
+    std::span<const uint8_t> body;
+};
+
 struct WasmGlobalType {
     ValType type;
     bool mut;
+};
+
+struct WasmGlobal {
+    // uint32_t index;
+    WasmGlobalType type;
+    WasmInitExpr init_expr;
+    // std::string_view symbol_name; // from the "linking" section
+    // uint32_t offset; // Offset of the definition in the binary's Global
+    // section uint32_t size;   // Size of the definition in the binary's Global
+    // section
 };
 
 struct WasmLimits {
