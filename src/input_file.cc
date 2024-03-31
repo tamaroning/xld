@@ -51,7 +51,7 @@ ObjectFile<E> *ObjectFile<E>::create(Context<E> &ctx, MappedFile *mf) {
 // Parse vector of variable-length element and increment pointer
 // f needs to increment pointer
 template <typename T>
-std::vector<T> parse_vec_varlen(const u8 *data,
+std::vector<T> parse_vec_varlen(const u8 *&data,
                                 std::function<T(const u8 *&)> f) {
     u32 num = decodeULEB128AndInc(data);
     std::vector<T> v;
@@ -270,10 +270,10 @@ WasmInitExpr ObjectFile<E>::parse_init_expr(Context<E> &ctx, const u8 *&data) {
     bool extended = false;
     switch (op) {
     case wasm::WASM_OPCODE_I32_CONST:
-        decodeSLEB128(data);
+        decodeSLEB128AndInc(data);
         break;
     case wasm::WASM_OPCODE_I64_CONST:
-        decodeSLEB128(data);
+        decodeSLEB128AndInc(data);
         break;
     case wasm::WASM_OPCODE_F32_CONST:
         // IEEE754 encoded 32bit value
@@ -295,9 +295,68 @@ WasmInitExpr ObjectFile<E>::parse_init_expr(Context<E> &ctx, const u8 *&data) {
         extended = true;
     }
 
-    if (extended)
-        Fatal(ctx) << "extended init_expr not supported yet";
+    if (!extended) {
+        const u8 op = *data;
+        if (op == wasm::WASM_OPCODE_END) {
+            data++;
+            return WasmInitExpr{extended, std::span<const u8>(data_beg, data)};
+        } else
+            extended = true;
+    }
 
+    if (extended) {
+        while (true) {
+            u8 op = *data;
+            data++;
+
+            switch (op) {
+            case wasm::WASM_OPCODE_I32_CONST:
+            case wasm::WASM_OPCODE_GLOBAL_GET:
+            case wasm::WASM_OPCODE_REF_NULL:
+            case wasm::WASM_OPCODE_REF_FUNC:
+            case wasm::WASM_OPCODE_I64_CONST:
+                decodeULEB128AndInc(data);
+                break;
+            case wasm::WASM_OPCODE_F32_CONST:
+                data += 4;
+                break;
+            case wasm::WASM_OPCODE_F64_CONST:
+                data += 8;
+                break;
+            case wasm::WASM_OPCODE_I32_ADD:
+            case wasm::WASM_OPCODE_I32_SUB:
+            case wasm::WASM_OPCODE_I32_MUL:
+            case wasm::WASM_OPCODE_I64_ADD:
+            case wasm::WASM_OPCODE_I64_SUB:
+            case wasm::WASM_OPCODE_I64_MUL:
+                break;
+            case wasm::WASM_OPCODE_GC_PREFIX:
+                break;
+            // The GC opcodes are in a separate (prefixed space). This flat
+            // switch structure works as long as there is no overlap between the
+            // GC and general opcodes used in init exprs.
+            case wasm::WASM_OPCODE_STRUCT_NEW:
+            case wasm::WASM_OPCODE_STRUCT_NEW_DEFAULT:
+            case wasm::WASM_OPCODE_ARRAY_NEW:
+            case wasm::WASM_OPCODE_ARRAY_NEW_DEFAULT:
+                decodeULEB128AndInc(data);
+                break;
+            case wasm::WASM_OPCODE_ARRAY_NEW_FIXED:
+                decodeULEB128AndInc(data); // heap type index
+                decodeULEB128AndInc(data); // array size
+                break;
+            case wasm::WASM_OPCODE_REF_I31:
+                break;
+            case wasm::WASM_OPCODE_END:
+                break;
+            default:
+                Fatal(ctx) << "invalid opcode in init_expr: 0x" << std::hex
+                           << (u32)op;
+            }
+        }
+    }
+
+    Debug(ctx) << "p:" << (u64)data << "c;" << (u64)(*data);
     return WasmInitExpr{extended, std::span<const u8>(data_beg, data)};
 }
 
@@ -313,9 +372,10 @@ void ObjectFile<E>::parse(Context<E> &ctx) {
 
         std::string sec_name{sec_id_as_str(sec_id)};
         Debug(ctx) << "parsing " << sec_name;
+
         const u8 *content_beg = p;
-        std::span<const u8> content{content_beg, content_beg + content_size};
         u32 content_ofs = p - data;
+        std::span<const u8> content{content_beg, content_beg + content_size};
 
         switch (sec_id) {
         case WASM_SEC_CUSTOM: {
@@ -333,7 +393,7 @@ void ObjectFile<E>::parse(Context<E> &ctx) {
         } break;
         case WASM_SEC_TYPE: {
             std::function<std::span<const u8>(const u8 *&)> f =
-                [&](const u8 *data) {
+                [&](const u8 *&data) {
                     const u8 *type_begin = data;
                     ASSERT(*data == 0x60 &&
                            "type section must start with 0x60");
@@ -433,6 +493,10 @@ void ObjectFile<E>::parse(Context<E> &ctx) {
 
             break;
         }
+        Debug(ctx) << "p:" << (u64)p;
+        Debug(ctx) << "expected: " << (u64)(content_beg + content_size);
+        ASSERT((u64)p == (u64)(content_beg + content_size));
+
         this->sections.push_back(std::unique_ptr<InputSection<E>>(
             new InputSection(sec_id, content, this, content_ofs, sec_name)));
         p = content_beg + content_size;
