@@ -389,6 +389,8 @@ void ObjectFile<E>::parse(Context<E> &ctx) {
                 parse_reloc_sec(ctx, bytes);
             } else {
                 Warn(ctx) << "custom section: " << sec_name << " ignored";
+                // Skip
+                p = content_beg + content_size;
             }
         } break;
         case WASM_SEC_TYPE: {
@@ -453,6 +455,7 @@ void ObjectFile<E>::parse(Context<E> &ctx) {
             std::function<WasmExport(const u8 *&)> f = [&](const u8 *&data) {
                 std::string name = parse_name(data);
                 u8 kind = *data;
+                data++;
                 u32 index = decodeULEB128AndInc(data);
                 return WasmExport{name, kind, index};
             };
@@ -475,7 +478,6 @@ void ObjectFile<E>::parse(Context<E> &ctx) {
                 };
             };
             this->globals = parse_vec_varlen(p, f);
-
         } break;
         case WASM_SEC_CODE: {
             std::function<std::span<const u8>(const u8 *&)> f =
@@ -483,6 +485,7 @@ void ObjectFile<E>::parse(Context<E> &ctx) {
                     const u8 *code_start = data;
                     u32 size = decodeULEB128AndInc(data);
                     std::span<const u8> code{code_start, data + size};
+                    data += size;
                     return code;
                 };
             this->codes = parse_vec_varlen(p, f);
@@ -490,16 +493,18 @@ void ObjectFile<E>::parse(Context<E> &ctx) {
         default:
             Fatal(ctx) << "section: " << sec_id_as_str(sec_id) << "("
                        << sec_name << ") ignored";
-
+            // Skip
+            p = content_beg + content_size;
             break;
         }
-        Debug(ctx) << "p:" << (u64)p;
-        Debug(ctx) << "expected: " << (u64)(content_beg + content_size);
-        ASSERT((u64)p == (u64)(content_beg + content_size));
+
+        if (p - content_beg != content_size) {
+            Fatal(ctx) << "bug! offset=0x" << (p - content_beg)
+                       << " is differed from content_size=0x" << content_size;
+        }
 
         this->sections.push_back(std::unique_ptr<InputSection<E>>(
             new InputSection(sec_id, content, this, content_ofs, sec_name)));
-        p = content_beg + content_size;
     }
 
     this->dump(ctx);
