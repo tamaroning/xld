@@ -35,11 +35,12 @@ class ObjectFile : public InputFile<E> {
 
     void parse(Context<E> &ctx);
 
-    void parse_linking_sec(Context<E> &ctx, std::span<const u8> bytes);
-
-    void parse_reloc_sec(Context<E> &ctx, std::span<const u8> bytes);
-
-    WasmInitExpr parse_init_expr(Context<E> &ctx, const u8*& data);
+    // parse custom sections
+    void parse_linking_sec(Context<E> &ctx, const u8 *&p, const u32 size);
+    void parse_reloc_sec(Context<E> &ctx, const u8 *&p, const u32 size);
+    void parse_name_sec(Context<E> &ctx, const u8 *&p, const u32 size);
+    // parse misc
+    WasmInitExpr parse_init_expr(Context<E> &ctx, const u8 *&data);
 
     void dump(Context<E> &ctx);
 
@@ -83,6 +84,9 @@ class ObjectFile : public InputFile<E> {
 
     // reloc.* section
     // stored in InputSection
+
+    // name section
+    std::string module_name;
 };
 
 } // namespace xld::wasm

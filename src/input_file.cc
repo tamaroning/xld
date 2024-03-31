@@ -34,7 +34,9 @@ InputFile<E>::InputFile(Context<E> &ctx, MappedFile *mf)
           ohdr->magic[2] == WASM_MAGIC[2] && ohdr->magic[3] == WASM_MAGIC[3]))
         Fatal(ctx) << filename << ": bad magic\n";
 
-    // Should check version?
+    if (ohdr->version != WASM_VERSION)
+        Fatal(ctx) << filename << " is version " << ohdr->version
+                   << ". xld only supports" << WASM_VERSION << '\n';
 }
 
 template <typename E>
@@ -140,14 +142,14 @@ std::string_view sec_id_as_str(u8 sec_id) {
 }
 
 template <typename E>
-void ObjectFile<E>::parse_linking_sec(Context<E> &ctx,
-                                      std::span<const u8> bytes) {
-    const u8 *p = bytes.data();
+void ObjectFile<E>::parse_linking_sec(Context<E> &ctx, const u8 *&p,
+                                      const u32 size) {
+    const u8 *const beg = p;
     u32 version = decodeULEB128AndInc(p);
     if (version != 2)
         Fatal(ctx) << "linking version must be 2";
 
-    while (p < bytes.data() + bytes.size()) {
+    while (p < beg + size) {
         u8 type = *p;
         p++;
         // TODO: use result
@@ -238,9 +240,8 @@ void ObjectFile<E>::parse_linking_sec(Context<E> &ctx,
 }
 
 template <typename E>
-void ObjectFile<E>::parse_reloc_sec(Context<E> &ctx,
-                                    std::span<const u8> bytes) {
-    const u8 *p = bytes.data();
+void ObjectFile<E>::parse_reloc_sec(Context<E> &ctx, const u8 *&p,
+                                    const u32 size) {
     u32 sec_idx = decodeULEB128AndInc(p);
     if (sec_idx >= this->sections.size())
         Fatal(ctx) << "section index in WasmRelocation is corrupsed";
@@ -255,6 +256,59 @@ void ObjectFile<E>::parse_reloc_sec(Context<E> &ctx,
             offset,
             index,
         });
+    }
+}
+
+template <typename E>
+void ObjectFile<E>::parse_name_sec(Context<E> &ctx, const u8 *&p,
+                                   const u32 size) {
+    const u8 *const beg = p;
+    for (int i = 0; i < 3; i++) {
+        if (p >= beg + size)
+            break;
+
+        u8 subsec_kind = *p;
+        p++;
+        u32 subsec_size = decodeULEB128AndInc(p);
+
+        switch (subsec_kind) {
+        case WASM_NAMES_MODULE: {
+            // parse a single name
+            this->module_name = parse_name(p);
+        } break;
+        case WASM_NAMES_FUNCTION: {
+            // indeirectnamemap
+            u32 count = decodeULEB128AndInc(p);
+            for (int j = 0; j < count; j++) {
+                u32 func_index = decodeULEB128AndInc(p);
+                std::string name = parse_name(p);
+                // TODO:
+                Debug(ctx) << "func[" << func_index << "]=" << name;
+            }
+        } break;
+        case WASM_NAMES_LOCAL: {
+            // indirectnamemap
+            u32 count = decodeULEB128AndInc(p);
+            for (int j = 0; j < count; j++) {
+                u32 local_index = decodeULEB128AndInc(p);
+                std::string name = parse_name(p);
+                // TODO:
+                Debug(ctx) << "local[" << local_index << "]=" << name;
+            }
+        } break;
+        case WASM_NAMES_GLOBAL: {
+            // indirectnamemap
+            u32 count = decodeULEB128AndInc(p);
+            for (int j = 0; j < count; j++) {
+                u32 global_index = decodeULEB128AndInc(p);
+                std::string name = parse_name(p);
+                // TODO:
+                Debug(ctx) << "global[" << global_index << "]=" << name;
+            }
+        } break;
+        default:
+            Fatal(ctx) << "unknown name subsec kind: " << (int)subsec_kind;
+        }
     }
 }
 
@@ -381,12 +435,14 @@ void ObjectFile<E>::parse(Context<E> &ctx) {
         case WASM_SEC_CUSTOM: {
             const u8 *cont_begin = p;
             sec_name = parse_name(p);
-            u32 byte_size = content_size - (p - content_beg);
-            std::span<const u8> bytes{p, p + byte_size};
+            u32 custom_content_size = (content_beg + content_size) - p;
+            Debug(ctx) << "parsing " << sec_name;
             if (sec_name == "linking") {
-                parse_linking_sec(ctx, bytes);
+                parse_linking_sec(ctx, p, custom_content_size);
             } else if (sec_name.starts_with("reloc.")) {
-                parse_reloc_sec(ctx, bytes);
+                parse_reloc_sec(ctx, p, custom_content_size);
+            } else if (sec_name == "name") {
+                parse_name_sec(ctx, p, custom_content_size);
             } else {
                 Warn(ctx) << "custom section: " << sec_name << " ignored";
                 // Skip
@@ -538,7 +594,7 @@ void ObjectFile<E>::dump(Context<E> &ctx) {
         } break;
         case WASM_SEC_MEMORY: {
             // TODO:
-        };
+        }; break;
         case WASM_SEC_EXPORT: {
             for (int i = 0; i < this->exports.size(); i++) {
                 Debug(ctx) << "  - export[" << i
