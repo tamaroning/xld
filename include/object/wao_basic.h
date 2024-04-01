@@ -18,9 +18,6 @@
 
 #include "common/integers.h"
 #include "common/system.h"
-#include <optional>
-#include <string>
-#include <vector>
 
 namespace xld::wasm {
 

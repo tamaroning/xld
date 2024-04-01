@@ -10,6 +10,7 @@
 #include <cstring>
 #include <fcntl.h>
 #include <filesystem>
+#include <functional>
 #include <iostream>
 #include <mutex>
 #include <oneapi/tbb.h>
@@ -20,6 +21,7 @@
 #include <string_view>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <type_traits>
 #include <vector>
 
 using namespace oneapi;

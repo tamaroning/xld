@@ -5,9 +5,6 @@
 #include "section.h"
 #include "wasm.h"
 #include "xld.h"
-#include <functional>
-#include <optional>
-#include <type_traits>
 
 namespace xld::wasm {
 

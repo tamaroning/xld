@@ -13,6 +13,11 @@ struct WASM64 {};
 template <typename E>
 class InputFile {
   public:
+    // Only object file is supported
+    enum Kind {
+        Object,
+    };
+
     InputFile(Context<E> &ctx, MappedFile *mf);
 
     virtual ~InputFile() = default;
@@ -24,8 +29,8 @@ class InputFile {
     // void clear_symbols();
 
     MappedFile *mf = nullptr;
-
     std::string filename;
+    Kind kind = Object;
 };
 
 template <typename E>
