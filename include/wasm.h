@@ -49,13 +49,12 @@ class ObjectFile : public InputFile<E> {
 
     std::vector<std::unique_ptr<InputSection<E>>> sections;
     // type (func signature) section
-    // this span contains the first 0x60
-    std::vector<std::span<const u8>> func_types;
+    std::vector<WasmSignature> signatures;
     // import section
     std::vector<WasmImport> imports;
 
     // func section
-    std::vector<u32> func_sec_type_indices;
+    std::vector<WasmFunction> functions;
 
     // table section
 

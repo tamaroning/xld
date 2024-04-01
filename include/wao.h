@@ -258,7 +258,7 @@ struct WasmObjectHeader {
 static_assert(sizeof(WasmObjectHeader) == 8);
 
 // Subset of types that a value can have
-enum class ValType : u8 {
+enum ValType : u8 {
     I32 = WASM_TYPE_I32,
     I64 = WASM_TYPE_I64,
     F32 = WASM_TYPE_F32,
@@ -300,7 +300,7 @@ struct WasmGlobal {
     // uint32_t index;
     WasmGlobalType type;
     WasmInitExpr init_expr;
-    // std::string_view symbol_name; // from the "linking" section
+    std::string symbol_name; // from the "linking" section
     // uint32_t offset; // Offset of the definition in the binary's Global
     // section uint32_t size;   // Size of the definition in the binary's Global
     // section
@@ -401,8 +401,10 @@ struct WasmSymbolInfo {
 };
 
 struct WasmSignature {
-    std::array<ValType, 1> returns;
-    std::array<ValType, 4> params;
+    // max 1 elements?
+    std::vector<ValType> returns;
+    // max 4 elements?
+    std::vector<ValType> params;
     // LLVM can parse types other than functions encoded in the type section,
     // but does not actually model them. Instead a placeholder signature is
     // created in the Object's signature list.
@@ -410,10 +412,18 @@ struct WasmSignature {
     // Support empty and tombstone instances, needed by DenseMap.
     enum { Plain, Empty, Tombstone } state = Plain;
 
-    WasmSignature(std::array<ValType, 1> &&in_returns,
-                  std::array<ValType, 4> &&in_params)
+    WasmSignature(std::vector<ValType> &in_returns,
+                  std::vector<ValType> &in_params)
         : returns(in_returns), params(in_params) {}
     WasmSignature() = default;
+};
+
+struct WasmFunction {
+    u32 index;
+    // use std::shared_ptr?
+    u32 sig_index;
+    // from the "linking" section
+    std::string name;
 };
 
 } // namespace xld::wasm

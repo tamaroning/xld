@@ -67,10 +67,21 @@ std::vector<T> parse_vec_varlen(const u8 *&data,
 template <typename T>
 std::vector<T> parse_vec(const u8 *&data) {
     u32 num = decodeULEB128AndInc(data);
-    std::vector<T> vec{data, data + sizeof(T) * num};
+    const T *p = reinterpret_cast<const T *>(data);
+    std::vector<T> vec{p, p + sizeof(T) * num};
     data += sizeof(T) * num;
     return vec;
 }
+
+/*
+std::vector<ValType> parse_valtype_vec(const u8 *&data) {
+    u32 num = decodeULEB128AndInc(data);
+    const ValType *p = reinterpret_cast<const ValType *>(data);
+    std::vector<ValType> vec{p, p + sizeof(ValType) * num};
+    data += sizeof(ValType) * num;
+    return vec;
+}
+*/
 
 template <typename E>
 std::vector<u32> parse_uleb128_vec(Context<E> &ctx, const u8 *&data) {
@@ -282,8 +293,11 @@ void ObjectFile<E>::parse_name_sec(Context<E> &ctx, const u8 *&p,
             for (int j = 0; j < count; j++) {
                 u32 func_index = decodeULEB128AndInc(p);
                 std::string name = parse_name(p);
-                // TODO:
-                Debug(ctx) << "func[" << func_index << "]=" << name;
+                if (func_index >= this->functions.size())
+                    Fatal(ctx)
+                        << "func_index=" << func_index << " is out of range";
+
+                this->functions[func_index].name = name;
             }
         } break;
         case WASM_NAMES_LOCAL: {
@@ -302,8 +316,11 @@ void ObjectFile<E>::parse_name_sec(Context<E> &ctx, const u8 *&p,
             for (int j = 0; j < count; j++) {
                 u32 global_index = decodeULEB128AndInc(p);
                 std::string name = parse_name(p);
-                // TODO:
-                Debug(ctx) << "global[" << global_index << "]=" << name;
+                if (global_index >= this->globals.size())
+                    Fatal(ctx) << "global_index=" << global_index
+                               << " is out of range";
+
+                this->globals[global_index].symbol_name = name;
             }
         } break;
         default:
@@ -450,18 +467,16 @@ void ObjectFile<E>::parse(Context<E> &ctx) {
             }
         } break;
         case WASM_SEC_TYPE: {
-            std::function<std::span<const u8>(const u8 *&)> f =
-                [&](const u8 *&data) {
-                    const u8 *type_begin = data;
-                    ASSERT(*data == 0x60 &&
-                           "type section must start with 0x60");
-                    data++;
-                    // discard results
-                    std::vector<u8> param_types = parse_vec<u8>(data);
-                    std::vector<u8> result_types = parse_vec<u8>(data);
-                    return std::span<const u8>(type_begin, data);
-                };
-            this->func_types = parse_vec_varlen(p, f);
+            std::function<WasmSignature(const u8 *&)> f = [&](const u8 *&data) {
+                const u8 *type_begin = data;
+                ASSERT(*data == 0x60 && "type section must start with 0x60");
+                data++;
+                // discard results
+                std::vector<ValType> params = parse_vec<ValType>(data);
+                std::vector<ValType> returns = parse_vec<ValType>(data);
+                return WasmSignature(returns, params);
+            };
+            this->signatures = parse_vec_varlen(p, f);
         } break;
         case WASM_SEC_IMPORT: {
             std::function<WasmImport(const u8 *&)> f = [&](const u8 *&data) {
@@ -505,7 +520,15 @@ void ObjectFile<E>::parse(Context<E> &ctx) {
             this->imports = parse_vec_varlen(p, f);
         } break;
         case WASM_SEC_FUNCTION: {
-            this->func_sec_type_indices = parse_uleb128_vec(ctx, p);
+            u32 index = 0;
+            std::function<WasmFunction(const u8 *&)> f = [&](const u8 *&data) {
+                u32 sig_index = decodeULEB128AndInc(p);
+                // TODO: check range?
+                index++;
+                return WasmFunction{
+                    .index = index, .sig_index = sig_index, .name = ""};
+            };
+            this->functions = parse_vec_varlen(p, f);
         } break;
         case WASM_SEC_EXPORT: {
             std::function<WasmExport(const u8 *&)> f = [&](const u8 *&data) {
@@ -529,8 +552,9 @@ void ObjectFile<E>::parse(Context<E> &ctx) {
                 data++;
                 WasmInitExpr init_expr = parse_init_expr(ctx, data);
                 return WasmGlobal{
-                    {val_type, mut},
-                    init_expr,
+                    .type = {.type = val_type, .mut = mut},
+                    .init_expr = init_expr,
+                    .symbol_name = "",
                 };
             };
             this->globals = parse_vec_varlen(p, f);
@@ -575,7 +599,7 @@ void ObjectFile<E>::dump(Context<E> &ctx) {
                    << ", size=0x" << sec->content.size() << ")";
         switch (sec->sec_id) {
         case WASM_SEC_TYPE: {
-            for (int i = 0; i < this->func_types.size(); i++) {
+            for (int i = 0; i < this->signatures.size(); i++) {
                 Debug(ctx) << "  - type[" << i << "]";
             }
         } break;
@@ -587,14 +611,20 @@ void ObjectFile<E>::dump(Context<E> &ctx) {
             }
         } break;
         case WASM_SEC_FUNCTION: {
-            for (int i = 0; i < this->func_sec_type_indices.size(); i++) {
-                Debug(ctx) << "  - func[" << i << "]: "
-                           << "type[" << this->func_sec_type_indices[i] << "]";
+            for (int i = 0; i < this->functions.size(); i++) {
+                const WasmFunction &func = this->functions[i];
+                Debug(ctx) << "  - func[" << i << "]: " << func.name;
             }
         } break;
         case WASM_SEC_MEMORY: {
             // TODO:
         }; break;
+        case WASM_SEC_GLOBAL: {
+            for (int i = 0; i < this->globals.size(); i++) {
+                const WasmGlobal &global = this->globals[i];
+                Debug(ctx) << "  - global[" << i << "]: " << global.symbol_name;
+            }
+        } break;
         case WASM_SEC_EXPORT: {
             for (int i = 0; i < this->exports.size(); i++) {
                 Debug(ctx) << "  - export[" << i
