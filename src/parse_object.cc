@@ -7,6 +7,7 @@
 #include "xld.h"
 #include <functional>
 #include <optional>
+#include <type_traits>
 
 namespace xld::wasm {
 
@@ -27,21 +28,16 @@ std::vector<T> parse_vec_varlen(const u8 *&data,
 template <typename T>
 std::vector<T> parse_vec(const u8 *&data) {
     u32 num = decodeULEB128AndInc(data);
-    const T *p = reinterpret_cast<const T *>(data);
-    std::vector<T> vec{p, p + sizeof(T) * num};
+    std::vector<T> vec;
+    if constexpr (std::is_same<T, u8>::value) {
+        vec = std::vector<T>{data, data + sizeof(T) * num};
+    } else {
+        const T *p = reinterpret_cast<const T *>(data);
+        vec = std::vector<T>{p, p + sizeof(T) * num};
+    }
     data += sizeof(T) * num;
     return vec;
 }
-
-/*
-std::vector<ValType> parse_valtype_vec(const u8 *&data) {
-    u32 num = decodeULEB128AndInc(data);
-    const ValType *p = reinterpret_cast<const ValType *>(data);
-    std::vector<ValType> vec{p, p + sizeof(ValType) * num};
-    data += sizeof(ValType) * num;
-    return vec;
-}
-*/
 
 template <typename E>
 std::vector<u32> parse_uleb128_vec(Context<E> &ctx, const u8 *&data) {
