@@ -440,8 +440,6 @@ void ObjectFile<E>::parse(Context<E> &ctx) {
                 std::string field = parse_name(data);
                 u8 kind = *data;
                 data++;
-                Debug(ctx) << "import: " << module << "." << field
-                           << " kind=" << (int)kind;
                 switch (kind) {
                 case WASM_EXTERNAL_FUNCTION: {
                     u32 sig_index = decodeULEB128AndInc(data);
@@ -470,7 +468,7 @@ void ObjectFile<E>::parse(Context<E> &ctx) {
                     return WasmImport{module, field, kind, {.global = global}};
                 } break;
                 default:
-                    ASSERT(0 && "unknown import kind");
+                    Fatal(ctx) << "unknown import kind: " << (int)kind;
                 }
             };
             this->imports = parse_vec_varlen(p, f);
