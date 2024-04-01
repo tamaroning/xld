@@ -1,10 +1,14 @@
+#include "wasm.h"
 #include "xld.h"
+#include "input_file.h"
 
 namespace xld::wasm {
 
 template <typename E>
 void resolve_symbols(Context<E> &ctx) {
-    Warn(ctx) << "TODO: resolve symbols";
+    for (InputFile<E> *file : ctx.files) {
+        file->resolve_symbols(ctx);
+    }
 }
 
 template <typename E>

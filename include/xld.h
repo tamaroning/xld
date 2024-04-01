@@ -2,13 +2,17 @@
 
 #include "common/mmap.h"
 #include "common/system.h"
+#include "wasm.h"
 
 namespace xld::wasm {
 
 template <typename E>
+class InputFile;
+
+template <typename E>
 class ObjectFile;
 
-}
+} // namespace xld::wasm
 
 namespace xld {
 
@@ -171,10 +175,10 @@ struct Context {
 
     // Symbol table
     // TODO: use xxHash
-    //tbb::concurrent_hash_map<std::string_view, Symbol<E>> symbol_map;
+    // tbb::concurrent_hash_map<std::string_view, Symbol<E>> symbol_map;
 
     // Input files
-    std::vector<ObjectFile<E> *> objs;
+    std::vector<InputFile<E> *> files;
 
     // Command-line arguments
     struct {

@@ -1,6 +1,5 @@
 #pragma once
 #include "wao_basic.h"
-#include "xld.h"
 
 // Copy of LLVM
 
@@ -73,11 +72,6 @@ class WasmSymbol {
 
     unsigned get_visibility() const {
         return info.flags & wasm::WASM_SYMBOL_VISIBILITY_MASK;
-    }
-
-    template <typename E>
-    void dump(Context<E> &ctx) const {
-        Debug(ctx) << "Symbol: " << info.name << '\n';
     }
 };
 

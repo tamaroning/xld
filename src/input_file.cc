@@ -1,4 +1,5 @@
 
+#include "input_file.h"
 #include "object/wao_symbol.h"
 #include "wasm.h"
 #include "xld.h"
@@ -45,6 +46,12 @@ ObjectFile<E> *ObjectFile<E>::create(Context<E> &ctx, MappedFile *mf) {
     ObjectFile<E> *obj = new ObjectFile<E>(ctx, mf);
     ctx.obj_pool.push_back(std::unique_ptr<ObjectFile<E>>(obj));
     return obj;
+}
+
+template <typename E>
+void ObjectFile<E>::resolve_symbols(Context<E> &ctx) {
+    // TODO:
+    Debug(ctx) << "TODO:";
 }
 
 using E = WASM32;

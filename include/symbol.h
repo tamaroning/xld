@@ -17,7 +17,7 @@ class Symbol {
     // A symbol is owned (defined) by a file. If multiple files define the
     // symbol, the strongest binding is chosen.
     InputFile<E> *file = nullptr;
-
+    
     //bool is_imported = false;
     //bool is_exported = false;
 

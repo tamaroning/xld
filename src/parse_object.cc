@@ -1,6 +1,7 @@
 #include "common/integers.h"
 #include "common/leb128.h"
 #include "common/system.h"
+#include "input_file.h"
 #include "object/wao_symbol.h"
 #include "section.h"
 #include "wasm.h"
@@ -651,8 +652,8 @@ void ObjectFile<E>::dump(Context<E> &ctx) {
             Debug(ctx) << "  - num relocs: " << sec->relocs.size();
     }
 
-    for (auto& sym : this->symbols) {
-        sym.dump(ctx);
+    for (auto &sym : this->symbols) {
+        Debug(ctx) << "  - symbol: " << sym.info.name;
     }
     Debug(ctx) << "=== Dump Ends ===";
 }

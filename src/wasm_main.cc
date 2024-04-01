@@ -1,4 +1,5 @@
 #include "common/file.h"
+#include "input_file.h"
 #include "wasm.h"
 #include "xld.h"
 
@@ -7,7 +8,7 @@ namespace xld::wasm {
 template <typename E>
 int linker_main(int argc, char **argv) {
     Context<E> ctx;
-    
+
     // read files
     for (int i = 1; i < argc; i++) {
         std::string path = argv[i];
@@ -15,10 +16,10 @@ int linker_main(int argc, char **argv) {
         ObjectFile<E> *obj =
             ObjectFile<E>::create(ctx, must_open_file(ctx, path));
         obj->parse(ctx);
-        ctx.objs.push_back(obj);
+        ctx.files.push_back(obj);
     }
 
-    if (ctx.objs.empty())
+    if (ctx.files.empty())
         Fatal(ctx) << "no input files\n";
 
     // https://github.com/llvm/llvm-project/blob/95258419f6fe2e0922c2c0916fd176b9f7361555/lld/wasm/Driver.cpp#L1152C61-L1152C64
