@@ -484,6 +484,8 @@ void ObjectFile<E>::parse(Context<E> &ctx) {
                 std::string field = parse_name(data);
                 u8 kind = *data;
                 data++;
+                Debug(ctx) << "import: " << module << "." << field
+                           << " kind=" << (int)kind;
                 switch (kind) {
                 case WASM_EXTERNAL_FUNCTION: {
                     u32 sig_index = decodeULEB128AndInc(data);
@@ -495,10 +497,8 @@ void ObjectFile<E>::parse(Context<E> &ctx) {
                     ValType reftype{*data};
                     data++;
                     // parse limits
-                    const u8 flags = *data;
-                    data++;
                     WasmLimits limits = parse_limits(data);
-                    WasmTableType table{reftype, limits};
+                    WasmTableType table{.elem_type = reftype, .limits = limits};
                     return WasmImport{module, field, kind, {.table = table}};
                 } break;
                 case WASM_EXTERNAL_MEMORY: {
@@ -579,8 +579,10 @@ void ObjectFile<E>::parse(Context<E> &ctx) {
         }
 
         if (p - content_beg != content_size) {
-            Fatal(ctx) << "bug! offset=0x" << (p - content_beg)
-                       << " is differed from content_size=0x" << content_size;
+            Fatal(ctx)
+                << "bug! offset=0x" << (p - content_beg)
+                << " after parsing this section differs from content_size=0x"
+                << content_size;
         }
 
         this->sections.push_back(std::unique_ptr<InputSection<E>>(
@@ -613,7 +615,8 @@ void ObjectFile<E>::dump(Context<E> &ctx) {
         case WASM_SEC_FUNCTION: {
             for (int i = 0; i < this->functions.size(); i++) {
                 const WasmFunction &func = this->functions[i];
-                Debug(ctx) << "  - func[" << i << "]: " << func.name;
+                Debug(ctx) << "  - func[" << i << "]: " << func.name
+                           << " (type[" << func.sig_index << "])";
             }
         } break;
         case WASM_SEC_MEMORY: {
