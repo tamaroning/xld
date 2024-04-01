@@ -1,8 +1,8 @@
 #pragma once
 
 #include "common/mmap.h"
+#include "object/wao_symbol.h"
 #include "section.h"
-#include "wao.h"
 #include "xld.h"
 
 namespace xld::wasm {
@@ -79,7 +79,7 @@ class ObjectFile : public InputFile<E> {
     // data section
 
     // linking section
-    std::vector<WasmSymbolInfo> symbols;
+    std::vector<WasmSymbol> symbols;
 
     // reloc.* section
     // stored in InputSection

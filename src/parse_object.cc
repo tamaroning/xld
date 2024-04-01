@@ -1,8 +1,8 @@
 #include "common/integers.h"
 #include "common/leb128.h"
 #include "common/system.h"
+#include "object/wao_symbol.h"
 #include "section.h"
-#include "wao.h"
 #include "wasm.h"
 #include "xld.h"
 #include <functional>
@@ -131,6 +131,9 @@ void ObjectFile<E>::parse_linking_sec(Context<E> &ctx, const u8 *&p,
                 u32 flags = decodeULEB128AndInc(p);
 
                 WasmSymbolInfo info;
+                WasmGlobalType *global_type = nullptr;
+                WasmTableType *table_type = nullptr;
+                WasmSignature *signature = nullptr;
                 switch (type) {
                 case WASM_SYMBOL_TYPE_FUNCTION:
                 case WASM_SYMBOL_TYPE_TABLE:
@@ -167,13 +170,47 @@ void ObjectFile<E>::parse_linking_sec(Context<E> &ctx, const u8 *&p,
                     } else {
                         name = parse_name(p);
                     }
-                    info = WasmSymbolInfo{name,
-                                          type,
-                                          flags,
-                                          import_module,
-                                          import_name,
-                                          std::nullopt,
-                                          {.element_index = index}};
+                    info = WasmSymbolInfo{.name = name,
+                                          .kind = type,
+                                          .flags = flags,
+                                          .import_module = import_module,
+                                          .import_name = import_name,
+                                          .export_name = std::nullopt,
+                                          .value = {.element_index = index}};
+
+                    // if the symbol is defined in this module, get reference to
+                    // it.
+                    if (!(info.flags & wasm::WASM_SYMBOL_UNDEFINED)) {
+                        Debug(ctx) << info.name << " is defined!";
+                        // FIXME:
+
+                        switch (type) {
+                        case WASM_SYMBOL_TYPE_FUNCTION: {
+                            if (index >= this->functions.size())
+                                Fatal(ctx) << "function index=" << index
+                                           << " is out of range";
+                            signature = &this->signatures[this->functions[index]
+                                                              .sig_index];
+                        } break;
+                        case WASM_SYMBOL_TYPE_TABLE: {
+                            /*
+                            if (index >= this->tables.size())
+                                Fatal(ctx) << "table index=" << index
+                                           << " is out of range";
+                            table_type = &this->tables[index];
+                            */
+                            Fatal(ctx) << "TODO: handle table in symbol table";
+                        } break;
+                        case WASM_SYMBOL_TYPE_GLOBAL: {
+                            if (index >= this->globals.size())
+                                Fatal(ctx) << "global index=" << index
+                                           << " is out of range";
+                            global_type = &this->globals[index].type;
+                        } break;
+                        default:
+                            unreachable();
+                        }
+                    }
                 } break;
                 case WASM_SYMBOL_TYPE_DATA: {
                     std::string name = parse_name(p);
@@ -195,7 +232,8 @@ void ObjectFile<E>::parse_linking_sec(Context<E> &ctx, const u8 *&p,
                         << "unknown symbol type: " << (int)type << ", ignored";
                 }
                 }
-                this->symbols.push_back(info);
+                WasmSymbol sym{info, nullptr, nullptr, nullptr};
+                this->symbols.push_back(sym);
             }
         } break;
         default: {
@@ -469,6 +507,7 @@ void ObjectFile<E>::parse(Context<E> &ctx) {
                 } break;
                 default:
                     Fatal(ctx) << "unknown import kind: " << (int)kind;
+                    unreachable();
                 }
             };
             this->imports = parse_vec_varlen(p, f);
@@ -478,9 +517,13 @@ void ObjectFile<E>::parse(Context<E> &ctx) {
             std::function<WasmFunction(const u8 *&)> f = [&](const u8 *&data) {
                 u32 sig_index = decodeULEB128AndInc(p);
                 // TODO: check range?
-                index++;
+                if (sig_index >= this->signatures.size())
+                    Fatal(ctx)
+                        << "sig_index=" << sig_index << " is out of range";
+
                 return WasmFunction{
                     .index = index, .sig_index = sig_index, .name = ""};
+                index++;
             };
             this->functions = parse_vec_varlen(p, f);
         } break;
@@ -596,11 +639,12 @@ void ObjectFile<E>::dump(Context<E> &ctx) {
         case WASM_SEC_CUSTOM: {
             if (sec->name == "linking") {
                 for (int i = 0; i < this->symbols.size(); i++) {
-                    WasmSymbolInfo sym = this->symbols[i];
-                    std::string symname = sym.import_module.has_value()
-                                              ? (sym.import_module.value() +
-                                                 "." + sym.import_name.value())
-                                              : sym.name;
+                    WasmSymbol sym = this->symbols[i];
+                    std::string symname =
+                        sym.info.import_module.has_value()
+                            ? (sym.info.import_module.value() + "." +
+                               sym.info.import_name.value())
+                            : sym.info.name;
                     Debug(ctx) << "  - symbol[" << i << "]: " << symname;
                 }
             }
@@ -608,6 +652,10 @@ void ObjectFile<E>::dump(Context<E> &ctx) {
         }
         if (sec->relocs.size())
             Debug(ctx) << "  - num relocs: " << sec->relocs.size();
+    }
+
+    for (auto& sym : this->symbols) {
+        sym.dump(ctx);
     }
     Debug(ctx) << "=== Dump Ends ===";
 }

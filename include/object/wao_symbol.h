@@ -1,7 +1,11 @@
 #pragma once
-#include "wao.h"
+#include "wao_basic.h"
+#include "xld.h"
+
+// Copy of LLVM
 
 namespace xld::wasm {
+
 class WasmSymbol {
   public:
     WasmSymbol(const wasm::WasmSymbolInfo &info,
@@ -21,54 +25,59 @@ class WasmSymbol {
     const wasm::WasmTableType *table_type;
     const wasm::WasmSignature *signature;
 
-    bool isTypeFunction() const {
+    bool is_type_function() const {
         return info.kind == wasm::WASM_SYMBOL_TYPE_FUNCTION;
     }
 
-    bool isTypeTable() const {
+    bool is_type_table() const {
         return info.kind == wasm::WASM_SYMBOL_TYPE_TABLE;
     }
 
-    bool isTypeData() const { return info.kind == wasm::WASM_SYMBOL_TYPE_DATA; }
+    bool is_type_data() const {
+        return info.kind == wasm::WASM_SYMBOL_TYPE_DATA;
+    }
 
-    bool isTypeGlobal() const {
+    bool is_type_global() const {
         return info.kind == wasm::WASM_SYMBOL_TYPE_GLOBAL;
     }
 
-    bool isTypeSection() const {
+    bool is_type_section() const {
         return info.kind == wasm::WASM_SYMBOL_TYPE_SECTION;
     }
 
-    bool isTypeTag() const { return info.kind == wasm::WASM_SYMBOL_TYPE_TAG; }
+    bool is_type_tag() const { return info.kind == wasm::WASM_SYMBOL_TYPE_TAG; }
 
-    bool isDefined() const { return !isUndefined(); }
-
-    bool isUndefined() const {
+    bool is_undefined() const {
         return (info.flags & wasm::WASM_SYMBOL_UNDEFINED) != 0;
     }
 
-    bool isBindingWeak() const {
-        return getBinding() == wasm::WASM_SYMBOL_BINDING_WEAK;
+    bool is_binding_weak() const {
+        return get_binding() == wasm::WASM_SYMBOL_BINDING_WEAK;
     }
 
-    bool isBindingGlobal() const {
-        return getBinding() == wasm::WASM_SYMBOL_BINDING_GLOBAL;
+    bool is_binding_global() const {
+        return get_binding() == wasm::WASM_SYMBOL_BINDING_GLOBAL;
     }
 
-    bool isBindingLocal() const {
-        return getBinding() == wasm::WASM_SYMBOL_BINDING_LOCAL;
+    bool is_binding_local() const {
+        return get_binding() == wasm::WASM_SYMBOL_BINDING_LOCAL;
     }
 
-    unsigned getBinding() const {
+    unsigned get_binding() const {
         return info.flags & wasm::WASM_SYMBOL_BINDING_MASK;
     }
 
-    bool isHidden() const {
-        return getVisibility() == wasm::WASM_SYMBOL_VISIBILITY_HIDDEN;
+    bool is_hidden() const {
+        return get_visibility() == wasm::WASM_SYMBOL_VISIBILITY_HIDDEN;
     }
 
-    unsigned getVisibility() const {
+    unsigned get_visibility() const {
         return info.flags & wasm::WASM_SYMBOL_VISIBILITY_MASK;
+    }
+
+    template <typename E>
+    void dump(Context<E> &ctx) const {
+        Debug(ctx) << "Symbol: " << info.name << '\n';
     }
 };
 

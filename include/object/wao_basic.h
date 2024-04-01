@@ -397,7 +397,7 @@ struct WasmSymbolInfo {
         uint32_t element_index;
         // For a data symbols, the address of the data relative to segment.
         WasmDataReference data_ref;
-    };
+    } value;
 };
 
 struct WasmSignature {

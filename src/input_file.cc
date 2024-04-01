@@ -1,5 +1,5 @@
 
-#include "wao.h"
+#include "object/wao_symbol.h"
 #include "wasm.h"
 #include "xld.h"
 
@@ -8,6 +8,7 @@ namespace xld::wasm {
 // If we haven't seen the same `key` before, create a new instance
 // of Symbol and returns it. Otherwise, returns the previously-
 // instantiated object. `key` is usually the same as `name`.
+/*
 template <typename E>
 Symbol<E> *get_symbol(Context<E> &ctx, std::string_view key,
                       std::string_view name) {
@@ -15,6 +16,7 @@ Symbol<E> *get_symbol(Context<E> &ctx, std::string_view key,
     ctx.symbol_map.insert(acc, {key, Symbol<E>(name)});
     return const_cast<Symbol<E> *>(&acc->second);
 }
+*/
 
 template <typename E>
 InputFile<E>::InputFile(Context<E> &ctx, MappedFile *mf)
