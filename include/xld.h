@@ -150,7 +150,7 @@ struct WASM32;
 struct WASM64;
 
 template <typename E>
-int wasm_main(int argc, char **argv);
+int linker_main(int argc, char **argv);
 
 template <typename E>
 class Symbol {

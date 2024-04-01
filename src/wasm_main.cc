@@ -5,9 +5,10 @@
 namespace xld::wasm {
 
 template <typename E>
-int wasm_main(int argc, char **argv) {
+int linker_main(int argc, char **argv) {
     Context<E> ctx;
-
+    
+    // read files
     for (int i = 1; i < argc; i++) {
         std::string path = argv[i];
         SyncOut(ctx) << "Open " << path_clean(path) << "\n";
@@ -72,7 +73,7 @@ int wasm_main(int argc, char **argv) {
     return 0;
 }
 
-template int wasm_main<WASM32>(int, char **);
-// template int wasm_main<WASM64>(int, char **);
+template int linker_main<WASM32>(int, char **);
+// template int linker_main<WASM64>(int, char **);
 
 } // namespace xld::wasm
