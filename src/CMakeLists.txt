@@ -2,6 +2,7 @@ add_executable(xld)
 target_sources(xld PRIVATE
     main.cc
     wasm_main.cc
+    parse_object.cc
     input_file.cc
     pass.cc
     )
