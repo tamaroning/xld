@@ -305,6 +305,9 @@ class ObjectFile : public InputFile {
 
     // name section
     std::string module_name;
+
+    // datacount section
+    u32 data_count = 0;
 };
 
 class InputSection {

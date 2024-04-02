@@ -1,6 +1,7 @@
 #include "common/integers.h"
 #include "common/leb128.h"
 #include "common/system.h"
+#include "object/wao_basic.h"
 #include "object/wao_symbol.h"
 #include "xld.h"
 
@@ -17,6 +18,13 @@ std::vector<T> parse_vec_varlen(const u8 *&data,
         v.push_back(f(data));
     }
     return v;
+}
+
+void foreach_vec_varlen(const u8 *&data, std::function<void(const u8 *&)> f) {
+    u32 num = decodeULEB128AndInc(data);
+    for (int i = 0; i < num; i++) {
+        f(data);
+    }
 }
 
 // Parse vector of fix-length element and increment pointer
@@ -460,11 +468,13 @@ void ObjectFile::parse(Context &ctx) {
             std::function<WasmImport(const u8 *&)> f = [&](const u8 *&data) {
                 std::string module = parse_name(data);
                 std::string field = parse_name(data);
-                u8 kind = *data;
+                WasmImportKind kind = WasmImportKind(*data);
                 data++;
                 switch (kind) {
                 case WASM_EXTERNAL_FUNCTION: {
                     u32 sig_index = decodeULEB128AndInc(data);
+                    this->functions.push_back(WasmFunction{
+                        .sig_index = sig_index, .name = module + "." + field});
                     return WasmImport{
                         module, field, kind, {.sig_index = sig_index}};
                 } break;
@@ -479,6 +489,7 @@ void ObjectFile::parse(Context &ctx) {
                 } break;
                 case WASM_EXTERNAL_MEMORY: {
                     WasmLimits limits = parse_limits(data);
+                    // TODO: add to the object
                     return WasmImport{module, field, kind, {.memory = limits}};
                 } break;
                 case WASM_EXTERNAL_GLOBAL: {
@@ -487,6 +498,7 @@ void ObjectFile::parse(Context &ctx) {
                     const bool mut = *data;
                     data++;
                     WasmGlobalType global{val_type, mut};
+                    // TODO: add to the object
                     return WasmImport{module, field, kind, {.global = global}};
                 } break;
                 default:
@@ -497,48 +509,73 @@ void ObjectFile::parse(Context &ctx) {
             this->imports = parse_vec_varlen(p, f);
         } break;
         case WASM_SEC_FUNCTION: {
-            u32 index = 0;
-            std::function<WasmFunction(const u8 *&)> f = [&](const u8 *&data) {
+            std::function<void(const u8 *&)> f = [&](const u8 *&data) {
                 u32 sig_index = decodeULEB128AndInc(p);
-                // TODO: check range?
                 if (sig_index >= this->signatures.size())
                     Fatal(ctx)
                         << "sig_index=" << sig_index << " is out of range";
 
-                return WasmFunction{
-                    .index = index, .sig_index = sig_index, .name = ""};
-                index++;
+                u32 index = this->functions.size();
+                this->functions.push_back(WasmFunction{
+                    .index = index, .sig_index = sig_index, .name = ""});
             };
-            this->functions = parse_vec_varlen(p, f);
+            foreach_vec_varlen(p, f);
         } break;
         case WASM_SEC_EXPORT: {
             std::function<WasmExport(const u8 *&)> f = [&](const u8 *&data) {
                 std::string name = parse_name(data);
-                u8 kind = *data;
+                WasmImportKind kind = WasmImportKind(*data);
                 data++;
                 u32 index = decodeULEB128AndInc(data);
+                switch (kind) {
+                case WasmImportKind::FUNCTION:
+                    if (index >= this->functions.size())
+                        Fatal(ctx)
+                            << "function index=" << index << " is out of range";
+                    this->functions[index].name = name;
+                    break;
+                case WasmImportKind::GLOBAL:
+                    if (index >= this->globals.size())
+                        Fatal(ctx)
+                            << "global index=" << index << " is out of range";
+                    this->globals[index].symbol_name = name;
+                    break;
+                case WasmImportKind::MEMORY:
+                    if (index >= this->memories.size())
+                        Fatal(ctx)
+                            << "memory index=" << index << " is out of range";
+                    // FIXME: Memory has name?
+                    break;
+                case WasmImportKind::TABLE:
+                    // TODO: table
+                default:
+                    break;
+                }
                 return WasmExport{name, kind, index};
             };
             this->exports = parse_vec_varlen(p, f);
         } break;
         case WASM_SEC_MEMORY: {
-            std::function<WasmLimits(const u8 *&)> f = parse_limits;
-            this->memories = parse_vec_varlen(p, f);
+            std::function<void(const u8 *&)> f = [&](const u8 *&data) {
+                WasmLimits limits = parse_limits(data);
+                this->memories.push_back(limits);
+            };
+            foreach_vec_varlen(p, f);
         } break;
         case WASM_SEC_GLOBAL: {
-            std::function<WasmGlobal(const u8 *&)> f = [&](const u8 *&data) {
+            std::function<void(const u8 *&)> f = [&](const u8 *&data) {
                 const ValType val_type{*data};
                 data++;
                 const bool mut = *data;
                 data++;
                 WasmInitExpr init_expr = parse_init_expr(ctx, data);
-                return WasmGlobal{
+                this->globals.push_back(WasmGlobal{
                     .type = {.type = val_type, .mut = mut},
                     .init_expr = init_expr,
                     .symbol_name = "",
-                };
+                });
             };
-            this->globals = parse_vec_varlen(p, f);
+            foreach_vec_varlen(p, f);
         } break;
         case WASM_SEC_CODE: {
             std::function<std::span<const u8>(const u8 *&)> f =
@@ -551,6 +588,9 @@ void ObjectFile::parse(Context &ctx) {
                 };
             this->codes = parse_vec_varlen(p, f);
         } break;
+        case WASM_SEC_DATACOUNT: {
+            this->data_count = decodeULEB128AndInc(p);
+        }break;
         default:
             Fatal(ctx) << "section: " << sec_id_as_str(sec_id) << "("
                        << sec_name << ") ignored";

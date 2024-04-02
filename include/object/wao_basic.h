@@ -329,10 +329,17 @@ inline bool import_kind_eq_symtype(u8 kind, WasmSymbolType symty) {
     }
 }
 
+enum WasmImportKind : u8 {
+    FUNCTION = 0,
+    TABLE = 1,
+    MEMORY = 2,
+    GLOBAL = 3,
+};
+
 struct WasmImport {
     std::string module;
     std::string field;
-    uint8_t kind;
+    WasmImportKind kind;
     union {
         uint32_t sig_index;
         WasmGlobalType global;
@@ -343,7 +350,7 @@ struct WasmImport {
 
 struct WasmExport {
     std::string name;
-    uint8_t kind;
+    WasmImportKind kind;
     uint32_t index;
 };
 
