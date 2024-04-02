@@ -1,7 +1,9 @@
 #pragma once
 
-#include "common/system.h"
 #include "common/integers.h"
+#include <memory>
+#include <string>
+#include <sys/mman.h>
 
 namespace xld {
 

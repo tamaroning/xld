@@ -1,10 +1,8 @@
 #include "common/integers.h"
 #include "common/leb128.h"
 #include "common/system.h"
-#include "input_file.h"
 #include "object/wao_symbol.h"
 #include "section.h"
-#include "wasm.h"
 #include "xld.h"
 
 namespace xld::wasm {
@@ -37,8 +35,7 @@ std::vector<T> parse_vec(const u8 *&data) {
     return vec;
 }
 
-template <typename E>
-std::vector<u32> parse_uleb128_vec(Context<E> &ctx, const u8 *&data) {
+std::vector<u32> parse_uleb128_vec(Context &ctx, const u8 *&data) {
     u32 num = decodeULEB128AndInc(data);
     std::vector<u32> v;
     for (int i = 0; i < num; i++) {
@@ -106,9 +103,7 @@ std::string_view sec_id_as_str(u8 sec_id) {
     }
 }
 
-template <typename E>
-void ObjectFile<E>::parse_linking_sec(Context<E> &ctx, const u8 *&p,
-                                      const u32 size) {
+void ObjectFile::parse_linking_sec(Context &ctx, const u8 *&p, const u32 size) {
     const u8 *const beg = p;
     u32 version = decodeULEB128AndInc(p);
     if (version != 2)
@@ -239,9 +234,7 @@ void ObjectFile<E>::parse_linking_sec(Context<E> &ctx, const u8 *&p,
     }
 }
 
-template <typename E>
-void ObjectFile<E>::parse_reloc_sec(Context<E> &ctx, const u8 *&p,
-                                    const u32 size) {
+void ObjectFile::parse_reloc_sec(Context &ctx, const u8 *&p, const u32 size) {
     u32 sec_idx = decodeULEB128AndInc(p);
     if (sec_idx >= this->sections.size())
         Fatal(ctx) << "section index in WasmRelocation is corrupsed";
@@ -259,9 +252,7 @@ void ObjectFile<E>::parse_reloc_sec(Context<E> &ctx, const u8 *&p,
     }
 }
 
-template <typename E>
-void ObjectFile<E>::parse_name_sec(Context<E> &ctx, const u8 *&p,
-                                   const u32 size) {
+void ObjectFile::parse_name_sec(Context &ctx, const u8 *&p, const u32 size) {
     const u8 *const beg = p;
     for (int i = 0; i < 3; i++) {
         if (p >= beg + size)
@@ -320,8 +311,8 @@ void ObjectFile<E>::parse_name_sec(Context<E> &ctx, const u8 *&p,
 
 // parse initExpr
 // https://github.com/llvm/llvm-project/blob/e6f63a942a45e3545332cd9a43982a69a4d5667b/llvm/lib/Object/WasmObjectFile.cpp#L198
-template <typename E>
-WasmInitExpr ObjectFile<E>::parse_init_expr(Context<E> &ctx, const u8 *&data) {
+
+WasmInitExpr ObjectFile::parse_init_expr(Context &ctx, const u8 *&data) {
     const u8 *const data_beg = data;
 
     const u8 op = *data;
@@ -420,8 +411,7 @@ WasmInitExpr ObjectFile<E>::parse_init_expr(Context<E> &ctx, const u8 *&data) {
     return WasmInitExpr{extended, std::span<const u8>(data_beg, data)};
 }
 
-template <typename E>
-void ObjectFile<E>::parse(Context<E> &ctx) {
+void ObjectFile::parse(Context &ctx) {
     u8 *data = this->mf->data;
     const u8 *p = data + sizeof(WasmObjectHeader);
 
@@ -577,15 +567,14 @@ void ObjectFile<E>::parse(Context<E> &ctx) {
                 << content_size;
         }
 
-        this->sections.push_back(std::unique_ptr<InputSection<E>>(
+        this->sections.push_back(std::unique_ptr<InputSection>(
             new InputSection(sec_id, content, this, content_ofs, sec_name)));
     }
 
     this->dump(ctx);
 }
 
-template <typename E>
-void ObjectFile<E>::dump(Context<E> &ctx) {
+void ObjectFile::dump(Context &ctx) {
     Debug(ctx) << "=== " << this->mf->name << " ===";
     for (auto &sec : this->sections) {
         Debug(ctx) << std::hex << "Section: " << sec_id_as_str(sec->sec_id)
@@ -654,10 +643,5 @@ void ObjectFile<E>::dump(Context<E> &ctx) {
     }
     Debug(ctx) << "=== Dump Ends ===";
 }
-
-using E = WASM32;
-
-template class InputFile<E>;
-template class ObjectFile<E>;
 
 } // namespace xld::wasm

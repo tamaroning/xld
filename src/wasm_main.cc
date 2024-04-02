@@ -1,20 +1,16 @@
 #include "common/file.h"
-#include "input_file.h"
-#include "wasm.h"
 #include "xld.h"
 
 namespace xld::wasm {
 
-template <typename E>
 int linker_main(int argc, char **argv) {
-    Context<E> ctx;
+    Context ctx;
 
     // read files
     for (int i = 1; i < argc; i++) {
         std::string path = argv[i];
         SyncOut(ctx) << "Open " << path_clean(path) << "\n";
-        ObjectFile<E> *obj =
-            ObjectFile<E>::create(ctx, must_open_file(ctx, path));
+        ObjectFile *obj = ObjectFile::create(ctx, must_open_file(ctx, path));
         obj->parse(ctx);
         ctx.files.push_back(obj);
     }
@@ -78,8 +74,5 @@ int linker_main(int argc, char **argv) {
 
     return 0;
 }
-
-template int linker_main<WASM32>(int, char **);
-// template int linker_main<WASM64>(int, char **);
 
 } // namespace xld::wasm

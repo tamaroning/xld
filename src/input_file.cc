@@ -1,14 +1,10 @@
 
-#include "input_file.h"
 #include "object/wao_symbol.h"
-#include "symbol.h"
-#include "wasm.h"
 #include "xld.h"
 
 namespace xld::wasm {
 
-template <typename E>
-InputFile<E>::InputFile(Context<E> &ctx, MappedFile *mf)
+InputFile::InputFile(Context &ctx, MappedFile *mf)
     : mf(mf), filename(mf->name) {
 
     if (mf->size < sizeof(WasmObjectHeader))
@@ -22,22 +18,18 @@ InputFile<E>::InputFile(Context<E> &ctx, MappedFile *mf)
 
     if (ohdr->version != WASM_VERSION)
         Warn(ctx) << filename << " is version " << ohdr->version
-                   << ". xld only supports" << WASM_VERSION << '\n';
+                  << ". xld only supports" << WASM_VERSION << '\n';
 }
 
-template <typename E>
-ObjectFile<E>::ObjectFile(Context<E> &ctx, MappedFile *mf)
-    : InputFile<E>(ctx, mf) {}
+ObjectFile::ObjectFile(Context &ctx, MappedFile *mf) : InputFile(ctx, mf) {}
 
-template <typename E>
-ObjectFile<E> *ObjectFile<E>::create(Context<E> &ctx, MappedFile *mf) {
-    ObjectFile<E> *obj = new ObjectFile<E>(ctx, mf);
-    ctx.obj_pool.push_back(std::unique_ptr<ObjectFile<E>>(obj));
+ObjectFile *ObjectFile::create(Context &ctx, MappedFile *mf) {
+    ObjectFile *obj = new ObjectFile(ctx, mf);
+    ctx.obj_pool.push_back(std::unique_ptr<ObjectFile>(obj));
     return obj;
 }
 
-template <typename E>
-void ObjectFile<E>::resolve_symbols(Context<E> &ctx) {
+void ObjectFile::resolve_symbols(Context &ctx) {
     // Add symbols
     for (WasmSymbol &wsym : this->symbols) {
         // we care about global or weak symbols
@@ -46,7 +38,7 @@ void ObjectFile<E>::resolve_symbols(Context<E> &ctx) {
         if (wsym.is_undefined())
             continue;
 
-        Symbol<E> *sym = get_symbol(ctx, wsym.info.name);
+        Symbol *sym = get_symbol(ctx, wsym.info.name);
 
         bool error = !sym->file && !sym->is_weak && !wsym.is_binding_weak();
         if (error) {
@@ -61,10 +53,5 @@ void ObjectFile<E>::resolve_symbols(Context<E> &ctx) {
         }
     }
 }
-
-using E = WASM32;
-
-template class InputFile<E>;
-template class ObjectFile<E>;
 
 } // namespace xld::wasm

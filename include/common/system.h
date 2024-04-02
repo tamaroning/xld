@@ -26,7 +26,6 @@
 
 using namespace oneapi;
 
-#include <sys/mman.h>
 #include <unistd.h>
 
 #ifdef NDEBUG

@@ -1,4 +1,5 @@
 #include "common/file.h"
+#include "xld.h"
 
 namespace xld {
 
