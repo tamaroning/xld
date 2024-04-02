@@ -269,35 +269,26 @@ class ObjectFile : public InputFile {
     ObjectFile(Context &ctx, MappedFile *mf);
 
     std::vector<std::unique_ptr<InputSection>> sections;
-    // type (func signature) section
+
     std::vector<WasmSignature> signatures;
-    // import section
+
     std::vector<WasmImport> imports;
 
-    // func section
     std::vector<WasmFunction> functions;
 
     // table section
 
-    // memory section
     std::vector<WasmLimits> memories;
 
-    // global section
     std::vector<WasmGlobal> globals;
 
-    // export section
     std::vector<WasmExport> exports;
 
     // start section
 
     // elem section
 
-    // data count section
-
-    // code section
     std::vector<std::span<const u8>> codes;
-
-    // data section
 
     // linking section
 
