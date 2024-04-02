@@ -1,6 +1,7 @@
 
 #include "input_file.h"
 #include "object/wao_symbol.h"
+#include "symbol.h"
 #include "wasm.h"
 #include "xld.h"
 
@@ -37,8 +38,22 @@ ObjectFile<E> *ObjectFile<E>::create(Context<E> &ctx, MappedFile *mf) {
 
 template <typename E>
 void ObjectFile<E>::resolve_symbols(Context<E> &ctx) {
-    // TODO:
-    Debug(ctx) << "TODO:";
+    // Add symbols
+    for (WasmSymbol &wsym : this->symbols) {
+        // we care about global or weak symbols
+        if (!wsym.is_binding_global() && !wsym.is_binding_weak())
+            continue;
+        if (wsym.is_undefined())
+            continue;
+
+        Symbol<E> *sym = get_symbol(ctx, wsym.info.name);
+
+        bool should_override = sym->is_weak && !wsym.is_binding_weak();
+        if (should_override) {
+            sym->file = this;
+            sym->is_weak = wsym.is_binding_weak();
+        }
+    }
 }
 
 using E = WASM32;

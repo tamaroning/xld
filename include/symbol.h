@@ -1,8 +1,13 @@
 #pragma once
-#include "wasm.h"
 #include "xld.h"
 
 namespace xld::wasm {
+
+template<typename E>
+class InputFile;
+
+template <typename E>
+class ObjectFile;
 
 // Symbol class represents a defined symbol.
 template <typename E>
@@ -24,14 +29,13 @@ class Symbol {
     bool is_weak = false;
 };
 
-// If we haven't seen the same `key` before, create a new instance
+// If we haven't seen the same `name` before, create a new instance
 // of Symbol and returns it. Otherwise, returns the previously-
 // instantiated object. `key` is usually the same as `name`.
 template <typename E>
-Symbol<E> *get_symbol(Context<E> &ctx, std::string_view key,
-                      std::string_view name) {
+Symbol<E> *get_symbol(Context<E> &ctx, std::string_view name) {
     typename decltype(ctx.symbol_map)::const_accessor acc;
-    ctx.symbol_map.insert(acc, {key, Symbol<E>(name)});
+    ctx.symbol_map.insert(acc, {name, Symbol<E>(name)});
     return const_cast<Symbol<E> *>(&acc->second);
 }
 

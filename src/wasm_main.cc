@@ -28,6 +28,11 @@ int linker_main(int argc, char **argv) {
     // if (target is not relocatable)
     create_internal_file(ctx);
 
+    // - Determine the set of object files to extract from archives.
+    // - Remove redundant COMDAT sections (e.g. duplicate inline functions).
+    // - Finally, the actual symbol resolution.
+    // - LTO, which requires preliminary symbol resolution before running
+    //   and a follow-up re-resolution after the LTO objects are emitted.
     resolve_symbols(ctx);
 
     // compute_import_export(ctx);

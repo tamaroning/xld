@@ -12,6 +12,9 @@ class InputFile;
 template <typename E>
 class ObjectFile;
 
+template <typename E>
+class Symbol;
+
 } // namespace xld::wasm
 
 namespace xld {
@@ -175,7 +178,7 @@ struct Context {
 
     // Symbol table
     // TODO: use xxHash
-    // tbb::concurrent_hash_map<std::string_view, Symbol<E>> symbol_map;
+    tbb::concurrent_hash_map<std::string_view, Symbol<E>> symbol_map;
 
     // Input files
     std::vector<InputFile<E> *> files;

@@ -50,6 +50,10 @@ class WasmSymbol {
         return (info.flags & wasm::WASM_SYMBOL_UNDEFINED) != 0;
     }
 
+    bool is_defined() const {
+        return !is_undefined();
+    }
+
     bool is_binding_weak() const {
         return get_binding() == wasm::WASM_SYMBOL_BINDING_WEAK;
     }
