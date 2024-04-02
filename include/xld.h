@@ -3,7 +3,6 @@
 #include "common/mmap.h"
 #include "common/system.h"
 #include "object/wao_symbol.h"
-#include "section.h"
 
 namespace xld::wasm {
 

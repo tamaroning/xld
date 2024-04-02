@@ -2,7 +2,6 @@
 #include "common/leb128.h"
 #include "common/system.h"
 #include "object/wao_symbol.h"
-#include "section.h"
 #include "xld.h"
 
 namespace xld::wasm {
