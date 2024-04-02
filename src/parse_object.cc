@@ -129,6 +129,7 @@ void ObjectFile::parse_linking_sec(Context &ctx, const u8 *&p, const u32 size) {
                 WasmSymbolType type{*p};
                 p++;
                 u32 flags = decodeULEB128AndInc(p);
+                Debug(ctx) << j << "type: " << type;
 
                 WasmSymbolInfo info;
                 WasmGlobalType *global_type = nullptr;
@@ -204,17 +205,36 @@ void ObjectFile::parse_linking_sec(Context &ctx, const u8 *&p, const u32 size) {
                                            << " is out of range";
                             global_type = &this->globals[index].type;
                         } break;
+                        case WASM_SYMBOL_TYPE_DATA: {
+                            std::string name = parse_name(p);
+                            u32 index = decodeULEB128AndInc(p);
+                            u32 offset = decodeULEB128AndInc(p);
+                            u32 size = decodeULEB128AndInc(p);
+                            info = WasmSymbolInfo{
+                                name,
+                                type,
+                                flags,
+                                std::nullopt,
+                                std::nullopt,
+                                std::nullopt,
+                                {.data_ref = {index, offset, size}}};
+
+                        } break;
                         default:
-                            unreachable();
+                            Fatal(ctx) << "unknown symbol type: " << (int)type;
                         }
                     }
                 } break;
                 case WASM_SYMBOL_TYPE_DATA: {
                     std::string name = parse_name(p);
-                    // index of segment
-                    u32 segment = decodeULEB128AndInc(p);
-                    u32 offset = decodeULEB128AndInc(p);
-                    u32 size = decodeULEB128AndInc(p);
+                    u32 segment = 0;
+                    u32 offset = 0;
+                    u32 size = 0;
+                    if (!(flags & WASM_SYMBOL_UNDEFINED)) {
+                        segment = decodeULEB128AndInc(p);
+                        offset = decodeULEB128AndInc(p);
+                        size = decodeULEB128AndInc(p);
+                    }
                     info =
                         WasmSymbolInfo{name,
                                        type,
@@ -229,7 +249,7 @@ void ObjectFile::parse_linking_sec(Context &ctx, const u8 *&p, const u32 size) {
                         << "unknown symbol type: " << (int)type << ", ignored";
                 }
                 }
-                WasmSymbol sym{info, nullptr, nullptr, nullptr};
+                WasmSymbol sym(info, global_type, table_type, signature);
                 this->symbols.push_back(sym);
             }
         } break;
