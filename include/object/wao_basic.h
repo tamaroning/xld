@@ -314,6 +314,7 @@ struct WasmTableType {
     WasmLimits limits;
 };
 
+// TODO: refine
 inline bool import_kind_eq_symtype(u8 kind, WasmSymbolType symty) {
     switch (kind) {
     case 0: // function

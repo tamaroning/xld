@@ -193,10 +193,16 @@ class Symbol {
     // symbol, the strongest binding is chosen.
     InputFile *file = nullptr;
 
-    // bool is_imported = false;
-    // bool is_exported = false;
+    bool is_defined() const { return file != nullptr; }
+    bool is_undefined() const { return file == nullptr; }
 
-    bool is_weak = false;
+    bool is_imported = false;
+    bool is_exported = false;
+
+    enum class Binding {
+        Weak,
+        Global,
+    } binding = Binding::Weak;
 };
 
 // If we haven't seen the same `name` before, create a new instance

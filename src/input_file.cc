@@ -30,7 +30,7 @@ ObjectFile *ObjectFile::create(Context &ctx, MappedFile *mf) {
 }
 
 void ObjectFile::resolve_symbols(Context &ctx) {
-    // Add symbols
+    // Register symbols
     for (WasmSymbol &wsym : this->symbols) {
         // we care about global or weak symbols
         if (!wsym.is_binding_global() && !wsym.is_binding_weak())
@@ -40,18 +40,35 @@ void ObjectFile::resolve_symbols(Context &ctx) {
 
         Symbol *sym = get_symbol(ctx, wsym.info.name);
 
-        bool error = !sym->file && !sym->is_weak && !wsym.is_binding_weak();
-        if (error) {
+        bool is_weak_def = wsym.is_defined() && wsym.is_binding_weak();
+        bool is_global_def = wsym.is_defined() && wsym.is_binding_global();
+
+        bool prev_is_weak_def =
+            sym->is_defined() && sym->binding == Symbol::Binding::Weak;
+        bool prev_is_global_def =
+            sym->is_defined() && sym->binding == Symbol::Binding::Global;
+
+        Debug(ctx) << "definiton: " << wsym.info.name;
+        if (prev_is_global_def && is_global_def) {
             Error(ctx) << "duplicate strong symbol definition: "
                        << wsym.info.name << '\n';
         }
-        bool should_override =
-            sym->file || (sym->is_weak && !wsym.is_binding_weak());
+
+        bool should_override = is_global_def;
         if (should_override) {
             sym->file = this;
-            sym->is_weak = wsym.is_binding_weak();
+            if (wsym.is_binding_weak())
+                sym->binding = Symbol::Binding::Weak;
+            else if (wsym.is_binding_global())
+                sym->binding = Symbol::Binding::Global;
         }
     }
+
+    // imports and exports
+    // for (const WasmImport& import: this->imports) {
+    // Symbol *sym = get_symbol(ctx, import.name);
+    // sym->is_imported = true;
+    // }
 }
 
 } // namespace xld::wasm
