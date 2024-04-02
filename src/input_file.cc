@@ -21,7 +21,7 @@ InputFile<E>::InputFile(Context<E> &ctx, MappedFile *mf)
         Fatal(ctx) << filename << ": bad magic\n";
 
     if (ohdr->version != WASM_VERSION)
-        Fatal(ctx) << filename << " is version " << ohdr->version
+        Warn(ctx) << filename << " is version " << ohdr->version
                    << ". xld only supports" << WASM_VERSION << '\n';
 }
 
@@ -48,7 +48,13 @@ void ObjectFile<E>::resolve_symbols(Context<E> &ctx) {
 
         Symbol<E> *sym = get_symbol(ctx, wsym.info.name);
 
-        bool should_override = sym->is_weak && !wsym.is_binding_weak();
+        bool error = !sym->file && !sym->is_weak && !wsym.is_binding_weak();
+        if (error) {
+            Error(ctx) << "duplicate strong symbol definition: "
+                       << wsym.info.name << '\n';
+        }
+        bool should_override =
+            sym->file || (sym->is_weak && !wsym.is_binding_weak());
         if (should_override) {
             sym->file = this;
             sym->is_weak = wsym.is_binding_weak();

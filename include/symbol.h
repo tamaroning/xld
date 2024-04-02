@@ -3,7 +3,7 @@
 
 namespace xld::wasm {
 
-template<typename E>
+template <typename E>
 class InputFile;
 
 template <typename E>
@@ -31,7 +31,7 @@ class Symbol {
 
 // If we haven't seen the same `name` before, create a new instance
 // of Symbol and returns it. Otherwise, returns the previously-
-// instantiated object. `key` is usually the same as `name`.
+// instantiated object.
 template <typename E>
 Symbol<E> *get_symbol(Context<E> &ctx, std::string_view name) {
     typename decltype(ctx.symbol_map)::const_accessor acc;

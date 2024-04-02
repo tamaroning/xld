@@ -112,7 +112,7 @@ void ObjectFile<E>::parse_linking_sec(Context<E> &ctx, const u8 *&p,
     const u8 *const beg = p;
     u32 version = decodeULEB128AndInc(p);
     if (version != 2)
-        Fatal(ctx) << "linking version must be 2";
+        Warn(ctx) << "linking version must be 2";
 
     while (p < beg + size) {
         u8 type = *p;
@@ -150,7 +150,7 @@ void ObjectFile<E>::parse_linking_sec(Context<E> &ctx, const u8 *&p,
                         int current_index = 0;
                         for (int k = 0;; k++) {
                             if (k >= this->imports.size())
-                                Fatal(ctx) << "index=" << index
+                                Error(ctx) << "index=" << index
                                            << " in syminfo is corrupsed";
                             WasmImport imp = this->imports[k];
                             if (import_kind_eq_symtype(imp.kind, type)) {
@@ -164,7 +164,7 @@ void ObjectFile<E>::parse_linking_sec(Context<E> &ctx, const u8 *&p,
                             }
                         }
                         if (!import_module.has_value())
-                            Fatal(ctx) << "Corrupsed index=" << index;
+                            Error(ctx) << "Corrupsed index=" << index;
                     } else {
                         name = parse_name(p);
                     }
@@ -179,13 +179,10 @@ void ObjectFile<E>::parse_linking_sec(Context<E> &ctx, const u8 *&p,
                     // if the symbol is defined in this module, get reference to
                     // it.
                     if (!(info.flags & wasm::WASM_SYMBOL_UNDEFINED)) {
-                        Debug(ctx) << info.name << " is defined!";
-                        // FIXME:
-
                         switch (type) {
                         case WASM_SYMBOL_TYPE_FUNCTION: {
                             if (index >= this->functions.size())
-                                Fatal(ctx) << "function index=" << index
+                                Error(ctx) << "function index=" << index
                                            << " is out of range";
                             signature = &this->signatures[this->functions[index]
                                                               .sig_index];
