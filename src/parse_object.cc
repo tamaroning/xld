@@ -590,7 +590,43 @@ void ObjectFile::parse(Context &ctx) {
         } break;
         case WASM_SEC_DATACOUNT: {
             this->data_count = decodeULEB128AndInc(p);
-        }break;
+        } break;
+        case WASM_SEC_DATA: {
+            u32 datacount = decodeULEB128AndInc(p);
+            if (datacount != this->data_count)
+                Fatal(ctx) << "datacount section is not equal to data section";
+
+            for (int i = 0; i < datacount; i++) {
+                u32 flags = decodeULEB128AndInc(p);
+                WasmDataSegment data;
+                switch (flags) {
+                case 0: {
+                    WasmInitExpr offset = parse_init_expr(ctx, p);
+                    std::vector<u8> content = parse_vec<u8>(p);
+                    data = WasmDataSegment{.init_flags = flags,
+                                           .offset = offset,
+                                           .content = content};
+                } break;
+                case WASM_DATA_SEGMENT_IS_PASSIVE: {
+                    std::vector<u8> content = parse_vec<u8>(p);
+                    data = WasmDataSegment{.init_flags = flags,
+                                           .content = content};
+                } break;
+                case WASM_DATA_SEGMENT_HAS_MEMINDEX: {
+                    u32 mem_index = decodeULEB128AndInc(p);
+                    WasmInitExpr offset = parse_init_expr(ctx, p);
+                    std::vector<u8> content = parse_vec<u8>(p);
+                    data = WasmDataSegment{.init_flags = flags,
+                                           .memory_index = mem_index,
+                                           .offset = offset,
+                                           .content = content};
+                } break;
+                default:
+                    Fatal(ctx) << "unknown data segment flags: " << flags;
+                }
+                this->data_segments.push_back(data);
+            }
+        } break;
         default:
             Fatal(ctx) << "section: " << sec_id_as_str(sec_id) << "("
                        << sec_name << ") ignored";

@@ -2,6 +2,7 @@
 
 #include "common/mmap.h"
 #include "common/system.h"
+#include "object/wao_basic.h"
 #include "object/wao_symbol.h"
 
 namespace xld::wasm {
@@ -308,6 +309,7 @@ class ObjectFile : public InputFile {
 
     // datacount section
     u32 data_count = 0;
+    std::vector<WasmDataSegment> data_segments;
 };
 
 class InputSection {

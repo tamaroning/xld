@@ -314,27 +314,27 @@ struct WasmTableType {
     WasmLimits limits;
 };
 
-// TODO: refine
-inline bool import_kind_eq_symtype(u8 kind, WasmSymbolType symty) {
-    switch (kind) {
-    case 0: // function
-        return symty == WasmSymbolType::WASM_SYMBOL_TYPE_FUNCTION;
-    case 1: // table
-        return symty == WasmSymbolType::WASM_SYMBOL_TYPE_TABLE;
-    case 3: // global
-        return symty == WasmSymbolType::WASM_SYMBOL_TYPE_GLOBAL;
-    case 2: // memory
-    default:
-        return false;
-    }
-}
-
 enum WasmImportKind : u8 {
     FUNCTION = 0,
     TABLE = 1,
     MEMORY = 2,
     GLOBAL = 3,
 };
+
+// TODO: refine
+inline bool import_kind_eq_symtype(WasmImportKind kind, WasmSymbolType symty) {
+    switch (kind) {
+    case WasmImportKind::FUNCTION: // function
+        return symty == WasmSymbolType::WASM_SYMBOL_TYPE_FUNCTION;
+    case WasmImportKind::TABLE: // table
+        return symty == WasmSymbolType::WASM_SYMBOL_TYPE_TABLE;
+    case WasmImportKind::GLOBAL: // global
+        return symty == WasmSymbolType::WASM_SYMBOL_TYPE_GLOBAL;
+    case WasmImportKind::MEMORY: // memory
+    default:
+        return false;
+    }
+}
 
 struct WasmImport {
     std::string module;
@@ -429,6 +429,22 @@ struct WasmFunction {
     u32 sig_index;
     // from the "linking" section
     std::string name;
+};
+
+struct WasmDataSegment {
+    uint32_t init_flags;
+    // Present if InitFlags & WASM_DATA_SEGMENT_HAS_MEMINDEX.
+    uint32_t memory_index;
+    // Present if InitFlags & WASM_DATA_SEGMENT_IS_PASSIVE == 0.
+    WasmInitExpr offset;
+
+    std::span<uint8_t> content;
+    // StringRef Name; // from the "segment info" section
+    //  https://webassembly.github.io/spec/core/text/instructions.html#memory-instructions
+    //  what is this?
+    // uint32_t alignment;
+    // uint32_t linking_flags;
+    // uint32_t Comdat; // from the "comdat info" section
 };
 
 } // namespace xld::wasm
