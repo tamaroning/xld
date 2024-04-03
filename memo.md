@@ -39,3 +39,8 @@ Executableを出力する場合
 
 Codeセクション→OutputSection
 https://github.com/tamaroning/mold/blob/3df7c8e89c507865abe0fad4ff5355f4d328f78d/elf/mold.h#L472
+
+wasi/libc
+https://github.com/bytecodealliance/wasmtime/blob/main/docs/WASI-documents.md
+
+/home/tamaron/work/wasi-libc/sysroot

@@ -279,8 +279,6 @@ void ObjectFile::parse_linking_sec(Context &ctx, const u8 *&p, const u32 size) {
                         << "unknown symbol type: " << (int)type << ", ignored";
                 }
                 }
-                // FIXME: name
-                ASSERT(info.name.size() > 0);
                 WasmSymbol sym(info, global_type, table_type, signature);
                 this->symbols.push_back(sym);
             }
@@ -597,7 +595,7 @@ void ObjectFile::parse(Context &ctx) {
                     Fatal(ctx)
                         << "sig_index=" << sig_index << " is out of range";
 
-                u32 index = this->functions.size();
+                u32 index = num_imported_functions + this->functions.size();
                 this->functions.push_back(WasmFunction{
                     .index = index, .sig_index = sig_index, .symbol_name = ""});
             };
@@ -632,7 +630,7 @@ void ObjectFile::parse(Context &ctx) {
                     }
                     break;
                 case WasmImportKind::TABLE:
-                    // TODO: table
+                    Fatal(ctx) << "TODO: table export";
                 default:
                     break;
                 }
@@ -747,11 +745,11 @@ void ObjectFile::dump(Context &ctx) {
             }
         } break;
         case WASM_SEC_IMPORT: {
+            u32 func_index = 0;
+            u32 table_index = 0;
+            u32 memory_index = 0;
+            u32 global_index = 0;
             for (WasmImport &import : this->imports) {
-                u32 func_index = 0;
-                u32 table_index = 0;
-                u32 memory_index = 0;
-                u32 global_index = 0;
                 switch (import.kind) {
                 case WASM_EXTERNAL_FUNCTION:
                     Debug(ctx) << "  - func[" << func_index
