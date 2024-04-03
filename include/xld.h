@@ -258,6 +258,13 @@ class ObjectFile : public InputFile {
     bool is_defined_memories(u32 index);
     WasmLimits &get_defined_memories(u32 index);
 
+    bool is_valid_function_symbol(u32 Index);
+    bool is_valid_table_symbol(u32 Index);
+    bool is_valid_global_symbol(u32 Index);
+    bool is_valid_tag_symbol(u32 Index);
+    bool is_valid_data_symbol(u32 Index);
+    bool is_valid_section_symbol(u32 Index);
+
     void parse(Context &ctx);
     // parse custom sections
     void parse_linking_sec(Context &ctx, const u8 *&p, const u32 size);
@@ -291,7 +298,7 @@ class ObjectFile : public InputFile {
 
     // start section
 
-    // elem section
+    std::vector<WasmElemSegment> elem_segments;
 
     std::vector<std::span<const u8>> codes;
 
@@ -306,6 +313,8 @@ class ObjectFile : public InputFile {
     // datacount section
     u32 data_count = 0;
     std::vector<WasmDataSegment> data_segments;
+
+    WasmLinkingData linking_data;
 
     u32 num_imported_globals = 0;
     u32 num_imported_functions = 0;

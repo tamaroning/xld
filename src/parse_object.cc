@@ -7,9 +7,14 @@
 
 namespace xld::wasm {
 
-u32 parse_varuint32(const u8 *&data) { return decodeULEB128AndInc(data); }
-
-i32 parse_varint32(const u8 *&data) { return decodeSLEB128AndInc(data); }
+static u32 parse_varuint32(const u8 *&data) {
+    return decodeULEB128AndInc(data);
+}
+static u64 parse_varuint64(const u8 *&data) {
+    return decodeULEB128AndInc(data);
+}
+static i32 parse_varint32(const u8 *&data) { return decodeSLEB128AndInc(data); }
+static i64 parse_varint64(const u8 *&data) { return decodeSLEB128AndInc(data); }
 
 // Parse vector of variable-length element and increment pointer
 // f needs to increment pointer
@@ -24,7 +29,7 @@ std::vector<T> parse_vec_varlen(const u8 *&data,
     return v;
 }
 
-void foreach_vec(const u8 *&data, std::function<void(const u8 *&)> f) {
+static void foreach_vec(const u8 *&data, std::function<void(const u8 *&)> f) {
     u32 num = parse_varuint32(data);
     for (int i = 0; i < num; i++) {
         f(data);
@@ -33,7 +38,7 @@ void foreach_vec(const u8 *&data, std::function<void(const u8 *&)> f) {
 
 // Parse vector of fix-length element and increment pointer
 template <typename T>
-std::vector<T> parse_vec(const u8 *&data) {
+static std::vector<T> parse_vec(const u8 *&data) {
     u32 num = parse_varuint32(data);
     std::vector<T> vec;
     if constexpr (std::is_same<T, u8>::value) {
@@ -46,7 +51,7 @@ std::vector<T> parse_vec(const u8 *&data) {
     return vec;
 }
 
-std::vector<u32> parse_uleb128_vec(Context &ctx, const u8 *&data) {
+static std::vector<u32> parse_uleb128_vec(Context &ctx, const u8 *&data) {
     u32 num = parse_varuint32(data);
     std::vector<u32> v;
     for (int i = 0; i < num; i++) {
@@ -56,7 +61,7 @@ std::vector<u32> parse_uleb128_vec(Context &ctx, const u8 *&data) {
 }
 
 // Parse name and increment pointer
-std::string parse_name(const u8 *&data) {
+static std::string parse_name(const u8 *&data) {
     u64 num = parse_varuint32(data);
     std::string name{data, data + num};
     data += num;
@@ -64,7 +69,7 @@ std::string parse_name(const u8 *&data) {
 }
 
 // Parse limits and increment pointer
-WasmLimits parse_limits(const u8 *&data) {
+static WasmLimits parse_limits(const u8 *&data) {
     const u8 flags = *data;
     data++;
     WasmLimits limits;
@@ -77,6 +82,26 @@ WasmLimits parse_limits(const u8 *&data) {
         limits = WasmLimits{flags, min, 0};
     }
     return limits;
+}
+
+static wasm::ValType parse_val_type(const u8 *&data, u32 code) {
+    // only directly encoded FUNCREF/EXTERNREF are supported
+    // (not ref null func or ref null extern)
+    switch (code) {
+    case wasm::WASM_TYPE_I32:
+    case wasm::WASM_TYPE_I64:
+    case wasm::WASM_TYPE_F32:
+    case wasm::WASM_TYPE_F64:
+    case wasm::WASM_TYPE_V128:
+    case wasm::WASM_TYPE_FUNCREF:
+    case wasm::WASM_TYPE_EXTERNREF:
+        return wasm::ValType(code);
+    }
+    if (code == wasm::WASM_TYPE_NULLABLE ||
+        code == wasm::WASM_TYPE_NONNULLABLE) {
+        /* Discard HeapType */ parse_varint64(data);
+    }
+    return wasm::ValType(wasm::ValType::OTHERREF);
 }
 
 std::string_view sec_id_as_str(u8 sec_id) {
@@ -116,8 +141,8 @@ std::string_view sec_id_as_str(u8 sec_id) {
 
 void ObjectFile::parse_linking_sec(Context &ctx, const u8 *&p, const u32 size) {
     const u8 *const beg = p;
-    u32 version = parse_varuint32(p);
-    if (version != 2)
+    linking_data.version = parse_varuint32(p);
+    if (linking_data.version != 2)
         Warn(ctx) << "linking version must be 2";
 
     std::vector<wasm::WasmImport *> imported_globals;
@@ -294,6 +319,18 @@ void ObjectFile::parse_linking_sec(Context &ctx, const u8 *&p, const u32 size) {
             };
             foreach_vec(p, f);
         } break;
+        case WASM_INIT_FUNCS: {
+            u32 count = parse_varuint32(p);
+            while (count--) {
+                WasmInitFunc init;
+                init.priority = parse_varuint32(p);
+                init.symbol = parse_varuint32(p);
+                if (!is_valid_function_symbol(init.symbol))
+                    Error(ctx) << "invalid function symbol";
+
+                linking_data.init_functions.push_back(init);
+            }
+        } break;
         default: {
             Error(ctx) << "unknown linking entry type: " << (int)type;
             return;
@@ -401,16 +438,17 @@ void ObjectFile::parse_name_sec(Context &ctx, const u8 *&p, const u32 size) {
 WasmInitExpr ObjectFile::parse_init_expr(Context &ctx, const u8 *&data) {
     const u8 *const data_beg = data;
 
-    const u8 op = *data;
+    WasmInitExprMVP e;
+    e.opcode = *data;
     data++;
 
     bool extended = false;
-    switch (op) {
+    switch (e.opcode) {
     case wasm::WASM_OPCODE_I32_CONST:
-        parse_varint32(data);
+        e.value.int32 = parse_varint32(data);
         break;
     case wasm::WASM_OPCODE_I64_CONST:
-        parse_varint32(data);
+        e.value.int64 = parse_varint32(data);
         break;
     case wasm::WASM_OPCODE_F32_CONST:
         // IEEE754 encoded 32bit value
@@ -421,7 +459,7 @@ WasmInitExpr ObjectFile::parse_init_expr(Context &ctx, const u8 *&data) {
         data += 8;
         break;
     case wasm::WASM_OPCODE_GLOBAL_GET:
-        parse_varuint32(data);
+        e.value.global = parse_varuint32(data);
         break;
     case wasm::WASM_OPCODE_REF_NULL: {
         // https://webassembly.github.io/spec/core/binary/instructions.html#reference-instructions
@@ -436,7 +474,9 @@ WasmInitExpr ObjectFile::parse_init_expr(Context &ctx, const u8 *&data) {
         const u8 op = *data;
         if (op == wasm::WASM_OPCODE_END) {
             data++;
-            return WasmInitExpr{extended, std::span<const u8>(data_beg, data)};
+            return WasmInitExpr{.extended = extended,
+                                .inst = e,
+                                .body = std::span<const u8>(data_beg, data)};
         } else
             extended = true;
     }
@@ -493,8 +533,9 @@ WasmInitExpr ObjectFile::parse_init_expr(Context &ctx, const u8 *&data) {
         }
     }
 
-    Debug(ctx) << "p:" << (u64)data << "c;" << (u64)(*data);
-    return WasmInitExpr{extended, std::span<const u8>(data_beg, data)};
+    return WasmInitExpr{.extended = extended,
+                        .inst = e,
+                        .body = std::span<const u8>(data_beg, data)};
 }
 
 void ObjectFile::parse(Context &ctx) {
@@ -600,6 +641,88 @@ void ObjectFile::parse(Context &ctx) {
                     .index = index, .sig_index = sig_index, .symbol_name = ""});
             };
             foreach_vec(p, f);
+        } break;
+        case WASM_SEC_ELEM: {
+            u32 count = parse_varuint32(p);
+            while (count--) {
+                WasmElemSegment segment;
+                segment.flags = parse_varuint32(p);
+                u32 supported_flags = wasm::WASM_ELEM_SEGMENT_HAS_TABLE_NUMBER |
+                                      wasm::WASM_ELEM_SEGMENT_IS_PASSIVE |
+                                      wasm::WASM_ELEM_SEGMENT_HAS_INIT_EXPRS;
+                if (segment.flags & ~supported_flags)
+                    Error(ctx) << "Unsupported flags for element segment";
+
+                bool is_passive =
+                    (segment.flags & wasm::WASM_ELEM_SEGMENT_IS_PASSIVE) != 0;
+                bool is_declarative =
+                    is_passive &&
+                    (segment.flags & wasm::WASM_ELEM_SEGMENT_IS_DECLARATIVE);
+                bool has_table_number =
+                    !is_passive &&
+                    (segment.flags & wasm::WASM_ELEM_SEGMENT_HAS_TABLE_NUMBER);
+                bool has_init_exprs =
+                    (segment.flags & wasm::WASM_ELEM_SEGMENT_HAS_INIT_EXPRS);
+                bool has_elem_kind =
+                    (segment.flags &
+                     wasm::WASM_ELEM_SEGMENT_MASK_HAS_ELEM_KIND) &&
+                    !has_init_exprs;
+
+                if (has_table_number)
+                    segment.table_number = parse_varuint32(p);
+                else
+                    segment.table_number = 0;
+
+                /*
+                TODO: check index
+                if (!isValidTableNumber(table_number))
+                    return make_error<GenericBinaryError>(
+                        "invalid TableNumber", object_error::parse_failed);
+                */
+
+                if (is_passive || is_declarative) {
+                    segment.offset.extended = false;
+                    segment.offset.inst.opcode = wasm::WASM_OPCODE_I32_CONST;
+                    segment.offset.inst.value.int32 = 0;
+                } else {
+                    segment.offset = parse_init_expr(ctx, p);
+                }
+
+                if (has_elem_kind) {
+                    u32 elem_kind = parse_varuint32(p);
+                    if (segment.flags &
+                        wasm::WASM_ELEM_SEGMENT_HAS_INIT_EXPRS) {
+                        segment.elem_kind = ValType(*p);
+                        p++;
+                        if (segment.elem_kind != wasm::ValType::FUNCREF &&
+                            segment.elem_kind != wasm::ValType::EXTERNREF &&
+                            segment.elem_kind != wasm::ValType::OTHERREF) {
+                            Error(ctx) << "invalid elem type";
+                        }
+                    } else {
+                        if (elem_kind != 0)
+                            Error(ctx) << "invalid elem type";
+                        segment.elem_kind = wasm::ValType::FUNCREF;
+                    }
+                } else if (has_init_exprs) {
+                    ValType elem_type = parse_val_type(p, parse_varuint32(p));
+                    segment.elem_kind = elem_type;
+                } else {
+                    segment.elem_kind = wasm::ValType::FUNCREF;
+                }
+
+                uint32_t num_elems = parse_varuint32(p);
+                if (has_init_exprs) {
+                    while (num_elems--) {
+                        wasm::WasmInitExpr expr = parse_init_expr(ctx, p);
+                    }
+                } else {
+                    while (num_elems--) {
+                        segment.functions.push_back(parse_varuint32(p));
+                    }
+                }
+                elem_segments.push_back(segment);
+            }
         } break;
         case WASM_SEC_EXPORT: {
             std::function<WasmExport(const u8 *&)> f = [&](const u8 *&data) {

@@ -61,6 +61,30 @@ WasmLimits &ObjectFile::get_defined_memories(u32 index) {
     return memories[index - num_imported_memories];
 }
 
+bool ObjectFile::is_valid_function_symbol(u32 Index) {
+    return Index < symbols.size() && symbols[Index].is_type_function();
+}
+
+bool ObjectFile::is_valid_table_symbol(u32 Index) {
+    return Index < symbols.size() && symbols[Index].is_type_table();
+}
+
+bool ObjectFile::is_valid_global_symbol(u32 Index) {
+    return Index < symbols.size() && symbols[Index].is_type_global();
+}
+
+bool ObjectFile::is_valid_tag_symbol(u32 Index) {
+    return Index < symbols.size() && symbols[Index].is_type_tag();
+}
+
+bool ObjectFile::is_valid_data_symbol(u32 Index) {
+    return Index < symbols.size() && symbols[Index].is_type_data();
+}
+
+bool ObjectFile::is_valid_section_symbol(u32 Index) {
+    return Index < symbols.size() && symbols[Index].is_type_section();
+}
+
 void ObjectFile::resolve_symbols(Context &ctx) {
     // Register symbols
     for (WasmSymbol &wsym : this->symbols) {

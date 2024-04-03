@@ -285,7 +285,7 @@ struct WasmInitExprMVP {
 struct WasmInitExpr {
     uint8_t extended; // Set to non-zero if extended const is used (i.e. more
                       // than one instruction)
-    // WasmInitExprMVP inst;
+    WasmInitExprMVP inst;
     std::span<const uint8_t> body;
 };
 
@@ -371,7 +371,7 @@ struct WasmInitFunc {
 struct WasmLinkingData {
     uint32_t version;
     std::vector<WasmInitFunc> init_functions;
-    std::vector<std::string> comdats;
+    //std::vector<std::string> comdats;
     // The linking section also contains a symbol table. This info (represented
     // in a WasmSymbolInfo struct) is stored inside the WasmSymbol object
     // instead of in this structure; this allows vectors of WasmSymbols and
@@ -450,6 +450,19 @@ struct WasmDataSegment {
     uint32_t alignment;
     uint32_t linking_flags;
     // uint32_t Comdat; // from the "comdat info" section
+};
+
+// Represents a Wasm element segment, with some limitations compared the spec:
+// 1) Does not model passive or declarative segments (Segment will end up with
+// an Offset field of i32.const 0)
+// 2) Does not model init exprs (Segment will get an empty Functions list)
+// 2) Does not model types other than basic funcref/externref (see ValType)
+struct WasmElemSegment {
+    uint32_t flags;
+    uint32_t table_number;
+    ValType elem_kind;
+    WasmInitExpr offset;
+    std::vector<uint32_t> functions;
 };
 
 } // namespace xld::wasm
