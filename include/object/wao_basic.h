@@ -18,6 +18,7 @@
 
 #include "common/integers.h"
 #include "common/system.h"
+#include <string>
 
 namespace xld::wasm {
 
@@ -428,7 +429,11 @@ struct WasmFunction {
     // use std::shared_ptr?
     u32 sig_index;
     // from the "linking" section
-    std::string name;
+    std::string symbol_name;
+    // from the "export" section
+    std::string export_name;
+    // from the "name" section
+    std::string debug_name;
 };
 
 struct WasmDataSegment {

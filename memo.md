@@ -36,3 +36,6 @@ Executableを出力する場合
 なくても動くが必要なやつ
 - target_features(custom)
 
+
+Codeセクション→OutputSection
+https://github.com/tamaroning/mold/blob/3df7c8e89c507865abe0fad4ff5355f4d328f78d/elf/mold.h#L472

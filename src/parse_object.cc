@@ -146,7 +146,8 @@ void ObjectFile::parse_linking_sec(Context &ctx, const u8 *&p, const u32 size) {
                         (flags & WASM_SYMBOL_UNDEFINED) &&
                         !(flags & WASM_SYMBOL_EXPLICIT_NAME);
                     u32 index = parse_varuint32(p);
-                    std::string name;
+                    // linking name
+                    std::string symbol_name;
                     std::optional<std::string> import_module;
                     std::optional<std::string> import_name;
 
@@ -163,7 +164,6 @@ void ObjectFile::parse_linking_sec(Context &ctx, const u8 *&p, const u32 size) {
                                 if (current_index == index) {
                                     import_module = imp.module;
                                     import_name = imp.field;
-                                    name = imp.module + '.' + imp.field;
                                     break;
                                 }
                                 current_index++;
@@ -172,9 +172,9 @@ void ObjectFile::parse_linking_sec(Context &ctx, const u8 *&p, const u32 size) {
                         if (!import_module.has_value())
                             Error(ctx) << "Corrupsed index=" << index;
                     } else {
-                        name = parse_name(p);
+                        symbol_name = parse_name(p);
                     }
-                    info = WasmSymbolInfo{.name = name,
+                    info = WasmSymbolInfo{.name = symbol_name,
                                           .kind = type,
                                           .flags = flags,
                                           .import_module = import_module,
@@ -187,11 +187,16 @@ void ObjectFile::parse_linking_sec(Context &ctx, const u8 *&p, const u32 size) {
                     if (!(info.flags & wasm::WASM_SYMBOL_UNDEFINED)) {
                         switch (type) {
                         case WASM_SYMBOL_TYPE_FUNCTION: {
-                            if (index >= this->functions.size())
+                            if (is_defined_function(index)) {
+                                WasmFunction &func =
+                                    get_defined_function(index);
+                                // Set symbol name to function
+                                func.symbol_name = info.name;
+                                signature = &this->signatures[func.sig_index];
+                            } else {
                                 Error(ctx) << "function index=" << index
                                            << " is out of range";
-                            signature = &this->signatures[this->functions[index]
-                                                              .sig_index];
+                            }
                         } break;
                         case WASM_SYMBOL_TYPE_TABLE: {
                             /*
@@ -203,28 +208,14 @@ void ObjectFile::parse_linking_sec(Context &ctx, const u8 *&p, const u32 size) {
                             Fatal(ctx) << "TODO: handle table in symbol table";
                         } break;
                         case WASM_SYMBOL_TYPE_GLOBAL: {
-                            if (index >= this->globals.size())
+                            if (is_defined_global(index)) {
+                                WasmGlobal &global = get_defined_global(index);
+                                global.symbol_name = info.name;
+                                global_type = &global.type;
+                            } else
                                 Fatal(ctx) << "global index=" << index
                                            << " is out of range";
-                            global_type = &this->globals[index].type;
                         } break;
-                        /*
-                        case WASM_SYMBOL_TYPE_DATA: {
-                            std::string name = parse_name(p);
-                            u32 index = parse_varuint32(p);
-                            u32 offset = parse_varuint32(p);
-                            u32 size = parse_varuint32(p);
-                            info = WasmSymbolInfo{
-                                name,
-                                type,
-                                flags,
-                                std::nullopt,
-                                std::nullopt,
-                                std::nullopt,
-                                {.data_ref = {index, offset, size}}};
-
-                        } break;
-                        */
                         default:
                             Fatal(ctx) << "unknown symbol type: " << (int)type;
                         }
@@ -336,14 +327,13 @@ void ObjectFile::parse_name_sec(Context &ctx, const u8 *&p, const u32 size) {
         case WASM_NAMES_FUNCTION: {
             // indeirectnamemap
             u32 count = parse_varuint32(p);
-            while(count--) {
+            while (count--) {
                 u32 func_index = parse_varuint32(p);
                 std::string name = parse_name(p);
-                if (func_index >= this->functions.size())
-                    Fatal(ctx)
-                        << "func_index=" << func_index << " is out of range";
-
-                this->functions[func_index].name = name;
+                if (is_defined_function(func_index)) {
+                    WasmFunction &func = get_defined_function(func_index);
+                    func.debug_name = name;
+                }
             }
         } break;
         case WASM_NAMES_LOCAL: {
@@ -353,7 +343,8 @@ void ObjectFile::parse_name_sec(Context &ctx, const u8 *&p, const u32 size) {
                 u32 local_index = parse_varuint32(p);
                 std::string name = parse_name(p);
                 // TODO:
-                Debug(ctx) << "local[" << local_index << "]=" << name;
+                Debug(ctx) << "local[" << local_index
+                           << "].debug_name=" << name;
             }
         } break;
         case WASM_NAMES_GLOBAL: {
@@ -362,11 +353,9 @@ void ObjectFile::parse_name_sec(Context &ctx, const u8 *&p, const u32 size) {
             for (int j = 0; j < count; j++) {
                 u32 global_index = parse_varuint32(p);
                 std::string name = parse_name(p);
-                if (global_index >= this->globals.size())
-                    Fatal(ctx) << "global_index=" << global_index
-                               << " is out of range";
-
-                this->globals[global_index].symbol_name = name;
+                // TODO:
+                Debug(ctx) << "global[" << global_index
+                           << "].debug_name=" << name;
             }
         } break;
         default:
@@ -573,7 +562,7 @@ void ObjectFile::parse(Context &ctx) {
 
                 u32 index = this->functions.size();
                 this->functions.push_back(WasmFunction{
-                    .index = index, .sig_index = sig_index, .name = ""});
+                    .index = index, .sig_index = sig_index, .symbol_name = ""});
             };
             foreach_vec(p, f);
         } break;
@@ -585,22 +574,25 @@ void ObjectFile::parse(Context &ctx) {
                 u32 index = parse_varuint32(data);
                 switch (kind) {
                 case WasmImportKind::FUNCTION:
-                    if (index >= this->functions.size())
+                    if (is_defined_function(index)) {
+                        WasmFunction &func = get_defined_function(index);
+                        func.export_name = name;
+                    } else {
                         Fatal(ctx)
                             << "function index=" << index << " is out of range";
-                    this->functions[index].name = name;
+                    }
                     break;
                 case WasmImportKind::GLOBAL:
-                    if (index >= this->globals.size())
+                    if (!is_defined_global(index)) {
                         Fatal(ctx)
                             << "global index=" << index << " is out of range";
-                    this->globals[index].symbol_name = name;
+                    }
                     break;
                 case WasmImportKind::MEMORY:
-                    if (index >= this->memories.size())
+                    if (!is_defined_memories(index)) {
                         Fatal(ctx)
                             << "memory index=" << index << " is out of range";
-                    // FIXME: Memory has name?
+                    }
                     break;
                 case WasmImportKind::TABLE:
                     // TODO: table
@@ -751,8 +743,9 @@ void ObjectFile::dump(Context &ctx) {
             for (int i = 0; i < this->functions.size(); i++) {
                 const WasmFunction &func = this->functions[i];
                 Debug(ctx) << "  - func[" << i + num_imported_functions
-                           << "]: " << func.name << " (type[" << func.sig_index
-                           << "])";
+                           << "]: " << func.symbol_name << " (type["
+                           << func.sig_index
+                           << "], export_name=" << func.export_name << ")";
             }
         } break;
         case WASM_SEC_MEMORY: {
