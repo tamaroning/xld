@@ -243,22 +243,36 @@ void ObjectFile::parse_linking_sec(Context &ctx, const u8 *&p, const u32 size) {
                 } break;
                 case WASM_SYMBOL_TYPE_DATA: {
                     std::string name = parse_name(p);
-                    u32 segment = 0;
+                    u32 segment_index = 0;
                     u32 offset = 0;
                     u32 size = 0;
-                    if (!(flags & WASM_SYMBOL_UNDEFINED)) {
-                        segment = parse_varuint32(p);
+                    if (is_defined) {
+                        segment_index = parse_varuint32(p);
                         offset = parse_varuint32(p);
                         size = parse_varuint32(p);
+                        if (!(flags & wasm::WASM_SYMBOL_ABSOLUTE)) {
+                            if (segment_index >= data_segments.size())
+                                Error(ctx)
+                                    << "data segment index=" << segment_index
+                                    << " is out of range";
+
+                            size_t segment_size =
+                                data_segments[segment_index].content.size();
+                            if (offset > segment_size)
+                                Error(ctx)
+                                    << "invalid data symbol offset: `" << name
+                                    << "` (offset: " << offset
+                                    << " segment size: " << segment_size << ")";
+                        }
                     }
-                    info =
-                        WasmSymbolInfo{name,
-                                       type,
-                                       flags,
-                                       std::nullopt,
-                                       std::nullopt,
-                                       std::nullopt,
-                                       {.data_ref = {segment, offset, size}}};
+                    info = WasmSymbolInfo{
+                        name,
+                        type,
+                        flags,
+                        std::nullopt,
+                        std::nullopt,
+                        std::nullopt,
+                        {.data_ref = {segment_index, offset, size}}};
                 } break;
                 default: {
                     Error(ctx)
