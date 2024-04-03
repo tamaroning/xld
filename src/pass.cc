@@ -25,8 +25,9 @@ void resolve_symbols(Context &ctx) {
 }
 
 void create_internal_file(Context &ctx) {
-    Warn(ctx) << "TODO: create internal file";
-    ObjectFile* obj = ObjectFile::create(ctx);
+    ObjectFile *obj = ObjectFile::create(ctx);
+
+    // TODO: add synthetic symbols
 
     ctx.files.push_back(obj);
 }

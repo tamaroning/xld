@@ -323,15 +323,15 @@ enum WasmImportKind : u8 {
 };
 
 // TODO: refine
-inline bool import_kind_eq_symtype(WasmImportKind kind, WasmSymbolType symty) {
+inline bool import_kind_eq_symtype(u8 kind, WasmSymbolType symty) {
     switch (kind) {
-    case WasmImportKind::FUNCTION: // function
+    case WASM_EXTERNAL_FUNCTION: // function
         return symty == WasmSymbolType::WASM_SYMBOL_TYPE_FUNCTION;
-    case WasmImportKind::TABLE: // table
+    case WASM_EXTERNAL_TABLE: // table
         return symty == WasmSymbolType::WASM_SYMBOL_TYPE_TABLE;
-    case WasmImportKind::GLOBAL: // global
+    case WASM_EXTERNAL_GLOBAL: // global
         return symty == WasmSymbolType::WASM_SYMBOL_TYPE_GLOBAL;
-    case WasmImportKind::MEMORY: // memory
+    case WASM_EXTERNAL_MEMORY: // memory
     default:
         return false;
     }
@@ -340,7 +340,7 @@ inline bool import_kind_eq_symtype(WasmImportKind kind, WasmSymbolType symty) {
 struct WasmImport {
     std::string module;
     std::string field;
-    WasmImportKind kind;
+    u8 kind;
     union {
         uint32_t sig_index;
         WasmGlobalType global;
@@ -351,7 +351,7 @@ struct WasmImport {
 
 struct WasmExport {
     std::string name;
-    WasmImportKind kind;
+    u8 kind;
     uint32_t index;
 };
 

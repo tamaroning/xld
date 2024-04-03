@@ -120,26 +120,81 @@ void ObjectFile::parse_linking_sec(Context &ctx, const u8 *&p, const u32 size) {
     if (version != 2)
         Warn(ctx) << "linking version must be 2";
 
+    std::vector<wasm::WasmImport *> imported_globals;
+    std::vector<wasm::WasmImport *> imported_functions;
+    std::vector<wasm::WasmImport *> imported_tags;
+    std::vector<wasm::WasmImport *> imported_tables;
+    imported_globals.reserve(imports.size());
+    imported_functions.reserve(imports.size());
+    imported_tags.reserve(imports.size());
+    imported_tables.reserve(imports.size());
+    for (auto &i : imports) {
+        if (i.kind == wasm::WASM_EXTERNAL_FUNCTION)
+            imported_functions.emplace_back(&i);
+        else if (i.kind == wasm::WASM_EXTERNAL_GLOBAL)
+            imported_globals.emplace_back(&i);
+        else if (i.kind == wasm::WASM_EXTERNAL_TAG)
+            imported_tags.emplace_back(&i);
+        else if (i.kind == wasm::WASM_EXTERNAL_TABLE)
+            imported_tables.emplace_back(&i);
+    }
+
     while (p < beg + size) {
         u8 type = *p;
         p++;
         // TODO: use result
         u32 payload_len = parse_varuint32(p);
 
+        // TODO: refactor
+        // https://github.com/llvm/llvm-project/blob/e6f63a942a45e3545332cd9a43982a69a4d5667b/llvm/lib/Object/WasmObjectFile.cpp#L709
         switch (type) {
         case WASM_SYMBOL_TABLE: {
             u64 count = parse_varuint32(p);
-            for (int j = 0; j < count; j++) {
+            while (count--) {
                 WasmSymbolType type{*p};
                 p++;
                 u32 flags = parse_varuint32(p);
+                bool is_defined = (flags & wasm::WASM_SYMBOL_UNDEFINED) == 0;
 
                 WasmSymbolInfo info;
                 WasmGlobalType *global_type = nullptr;
                 WasmTableType *table_type = nullptr;
                 WasmSignature *signature = nullptr;
                 switch (type) {
-                case WASM_SYMBOL_TYPE_FUNCTION:
+                case WASM_SYMBOL_TYPE_FUNCTION: {
+                    u32 index = parse_varuint32(p);
+
+                    std::string symbol_name;
+                    std::optional<std::string> import_module;
+                    std::optional<std::string> import_name;
+                    if (is_defined) {
+                        if (!is_defined_function(index))
+                            Error(ctx) << "function index=" << index
+                                       << " is out of range";
+
+                        WasmFunction &func = get_defined_function(index);
+                        symbol_name = parse_name(p);
+                        if (func.symbol_name.empty())
+                            func.symbol_name = symbol_name;
+                    } else {
+                        WasmImport &import = *imported_functions[index];
+                        if ((flags & wasm::WASM_SYMBOL_EXPLICIT_NAME) != 0) {
+                            symbol_name = parse_name(p);
+                            import_name = import.field;
+                            import_module = import.module;
+                        } else {
+                            symbol_name = import.field;
+                        }
+                        signature = &signatures[import.sig_index];
+                    }
+                    info = WasmSymbolInfo{.name = symbol_name,
+                                          .kind = type,
+                                          .flags = flags,
+                                          .import_module = import_module,
+                                          .import_name = import_name,
+                                          .export_name = std::nullopt,
+                                          .value = {.element_index = index}};
+                } break;
                 case WASM_SYMBOL_TYPE_TABLE:
                 case WASM_SYMBOL_TYPE_GLOBAL: {
                     bool index_references_import =
@@ -164,7 +219,6 @@ void ObjectFile::parse_linking_sec(Context &ctx, const u8 *&p, const u32 size) {
                                 if (current_index == index) {
                                     import_module = imp.module;
                                     import_name = imp.field;
-                                    // FIXME: correct?
                                     symbol_name = imp.field;
                                     break;
                                 }
@@ -790,7 +844,7 @@ void ObjectFile::dump(Context &ctx) {
                 for (int i = 0; i < this->symbols.size(); i++) {
                     WasmSymbol sym = this->symbols[i];
                     std::string symname =
-                        sym.info.import_module.has_value()
+                        sym.info.import_name.has_value()
                             ? (sym.info.import_module.value() + "." +
                                sym.info.import_name.value())
                             : sym.info.name;
