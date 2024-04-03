@@ -4,8 +4,11 @@
 
 namespace xld::wasm {
 
-InputFile::InputFile(Context &ctx, MappedFile *mf)
-    : mf(mf), filename(mf->name) {
+InputFile::InputFile(Context &ctx, MappedFile *mf) : mf(mf) {
+    if (!mf)
+        return;
+
+    filename = mf->name;
 
     if (mf->size < sizeof(WasmObjectHeader))
         Fatal(ctx) << filename << ": file too small\n";

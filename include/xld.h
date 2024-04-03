@@ -238,6 +238,7 @@ class InputFile {
     virtual void resolve_symbols(Context &ctx) = 0;
     // void clear_symbols();
 
+    // This pointer can be nullptr for the internal files
     MappedFile *mf = nullptr;
     std::string filename;
     Kind kind = Object;
@@ -247,7 +248,7 @@ class InputFile {
 
 class ObjectFile : public InputFile {
   public:
-    static ObjectFile *create(Context &ctx, MappedFile *mf);
+    static ObjectFile *create(Context &ctx, MappedFile *mf=nullptr);
 
     bool is_defined_function(u32 index);
     WasmFunction &get_defined_function(u32 index);
@@ -255,7 +256,7 @@ class ObjectFile : public InputFile {
     WasmGlobal &get_defined_global(u32 index);
     bool is_defined_memories(u32 index);
     WasmLimits &get_defined_memories(u32 index);
-    
+
     void parse(Context &ctx);
     // parse custom sections
     void parse_linking_sec(Context &ctx, const u8 *&p, const u32 size);

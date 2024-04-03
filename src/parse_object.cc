@@ -164,6 +164,8 @@ void ObjectFile::parse_linking_sec(Context &ctx, const u8 *&p, const u32 size) {
                                 if (current_index == index) {
                                     import_module = imp.module;
                                     import_name = imp.field;
+                                    // FIXME: correct?
+                                    symbol_name = imp.field;
                                     break;
                                 }
                                 current_index++;
@@ -245,6 +247,8 @@ void ObjectFile::parse_linking_sec(Context &ctx, const u8 *&p, const u32 size) {
                         << "unknown symbol type: " << (int)type << ", ignored";
                 }
                 }
+                // FIXME: name
+                ASSERT(info.name.size() > 0);
                 WasmSymbol sym(info, global_type, table_type, signature);
                 this->symbols.push_back(sym);
             }
@@ -339,12 +343,10 @@ void ObjectFile::parse_name_sec(Context &ctx, const u8 *&p, const u32 size) {
         case WASM_NAMES_LOCAL: {
             // indirectnamemap
             u32 count = parse_varuint32(p);
-            for (int j = 0; j < count; j++) {
-                u32 local_index = parse_varuint32(p);
-                std::string name = parse_name(p);
-                // TODO:
-                Debug(ctx) << "local[" << local_index
-                           << "].debug_name=" << name;
+            while (count--) {
+                parse_varuint32(p);
+                parse_name(p);
+                // ignore local names for now
             }
         } break;
         case WASM_NAMES_GLOBAL: {
@@ -466,6 +468,9 @@ WasmInitExpr ObjectFile::parse_init_expr(Context &ctx, const u8 *&data) {
 }
 
 void ObjectFile::parse(Context &ctx) {
+    if (mf == nullptr)
+        return;
+
     u8 *data = this->mf->data;
     const u8 *p = data + sizeof(WasmObjectHeader);
 
