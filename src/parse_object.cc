@@ -336,7 +336,7 @@ void ObjectFile::parse_name_sec(Context &ctx, const u8 *&p, const u32 size) {
         case WASM_NAMES_FUNCTION: {
             // indeirectnamemap
             u32 count = parse_varuint32(p);
-            for (int j = 0; j < count; j++) {
+            while(count--) {
                 u32 func_index = parse_varuint32(p);
                 std::string name = parse_name(p);
                 if (func_index >= this->functions.size())

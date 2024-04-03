@@ -251,6 +251,13 @@ class ObjectFile : public InputFile {
 
     void resolve_symbols(Context &ctx);
 
+    bool is_defined_function(u32 index);
+    WasmFunction &get_defined_function(u32 index);
+    bool is_defined_global(u32 index);
+    WasmGlobal &get_defined_global(u32 index);
+    bool is_defined_memories(u32 index);
+    WasmLimits &get_defined_memories(u32 index);
+    
     // --- parser ---
 
     void parse(Context &ctx);
@@ -306,7 +313,6 @@ class ObjectFile : public InputFile {
     u32 num_imported_functions = 0;
     u32 num_imported_tables = 0;
     u32 num_imported_memories = 0;
-
 };
 
 class InputSection {

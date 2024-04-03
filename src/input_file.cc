@@ -29,6 +29,33 @@ ObjectFile *ObjectFile::create(Context &ctx, MappedFile *mf) {
     return obj;
 }
 
+bool ObjectFile::is_defined_function(u32 index) {
+    return index >= num_imported_functions &&
+           index < num_imported_functions + functions.size();
+}
+
+WasmFunction &ObjectFile::get_defined_function(u32 index) {
+    return functions[index - num_imported_functions];
+}
+
+bool ObjectFile::is_defined_global(u32 index) {
+    return index >= num_imported_globals &&
+           index < num_imported_globals + globals.size();
+}
+
+WasmGlobal &ObjectFile::get_defined_global(u32 index) {
+    return globals[index - num_imported_globals];
+}
+
+bool ObjectFile::is_defined_memories(u32 index) {
+    return index >= num_imported_memories &&
+           index < num_imported_memories + memories.size();
+}
+
+WasmLimits &ObjectFile::get_defined_memories(u32 index) {
+    return memories[index - num_imported_memories];
+}
+
 void ObjectFile::resolve_symbols(Context &ctx) {
     // Register symbols
     for (WasmSymbol &wsym : this->symbols) {
