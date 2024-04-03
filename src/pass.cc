@@ -25,7 +25,7 @@ void resolve_symbols(Context &ctx) {
 }
 
 void create_internal_file(Context &ctx) {
-    ObjectFile *obj = ObjectFile::create(ctx);
+    ObjectFile *obj = ObjectFile::create(ctx, "<internal>");
 
     // TODO: add synthetic symbols
 

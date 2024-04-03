@@ -4,11 +4,10 @@
 
 namespace xld::wasm {
 
-InputFile::InputFile(Context &ctx, MappedFile *mf) : mf(mf) {
+InputFile::InputFile(Context &ctx, const std::string &filename, MappedFile *mf)
+    : mf(mf), filename(filename) {
     if (!mf)
         return;
-
-    filename = mf->name;
 
     if (mf->size < sizeof(WasmObjectHeader))
         Fatal(ctx) << filename << ": file too small\n";
@@ -24,10 +23,13 @@ InputFile::InputFile(Context &ctx, MappedFile *mf) : mf(mf) {
                   << ". xld only supports" << WASM_VERSION << '\n';
 }
 
-ObjectFile::ObjectFile(Context &ctx, MappedFile *mf) : InputFile(ctx, mf) {}
+ObjectFile::ObjectFile(Context &ctx, const std::string &filename,
+                       MappedFile *mf)
+    : InputFile(ctx, filename, mf) {}
 
-ObjectFile *ObjectFile::create(Context &ctx, MappedFile *mf) {
-    ObjectFile *obj = new ObjectFile(ctx, mf);
+ObjectFile *ObjectFile::create(Context &ctx, const std::string &filename,
+                               MappedFile *mf) {
+    ObjectFile *obj = new ObjectFile(ctx, filename, mf);
     ctx.obj_pool.push_back(std::unique_ptr<ObjectFile>(obj));
     return obj;
 }

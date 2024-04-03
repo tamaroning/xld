@@ -1,4 +1,7 @@
+#include "common/archive_file.h"
 #include "common/file.h"
+#include "common/filetype.h"
+#include "common/mmap.h"
 #include "xld.h"
 
 namespace xld::wasm {
@@ -8,11 +11,34 @@ int linker_main(int argc, char **argv) {
 
     // read files
     for (int i = 1; i < argc; i++) {
-        std::string path = argv[i];
-        SyncOut(ctx) << "Open " << path_clean(path) << "\n";
-        ObjectFile *obj = ObjectFile::create(ctx, must_open_file(ctx, path));
-        obj->parse(ctx);
-        ctx.files.push_back(obj);
+        std::string path = path_clean(argv[i]);
+        MappedFile *mf = must_open_file(ctx, path);
+
+        SyncOut(ctx) << "Open " << path << get_file_type(ctx, mf);
+        switch (get_file_type(ctx, mf)) {
+        case FileType::WASM_OBJ: {
+            ObjectFile *obj = ObjectFile::create(ctx, path, mf);
+            obj->parse(ctx);
+            ctx.files.push_back(obj);
+        } break;
+        case FileType::AR: {
+            for (MappedFile *f : read_archive_members(ctx, mf)) {
+                ObjectFile *obj = ObjectFile::create(ctx, f->name, f);
+                obj->parse(ctx);
+                ctx.files.push_back(obj);
+            }
+        } break;
+        case FileType::THIN_AR: {
+            for (MappedFile *f : read_thin_archive_members(ctx, mf)) {
+                ObjectFile *obj = ObjectFile::create(ctx, f->name, f);
+                obj->parse(ctx);
+                ctx.files.push_back(obj);
+            }
+        } break;
+        default:
+            Fatal(ctx) << "unknown file type: " << path;
+            break;
+        }
     }
 
     if (ctx.files.empty())

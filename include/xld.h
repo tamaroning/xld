@@ -228,7 +228,7 @@ class InputFile {
         Object,
     };
 
-    InputFile(Context &ctx, MappedFile *mf);
+    InputFile(Context &ctx, const std::string &filename, MappedFile *mf);
 
     virtual ~InputFile() = default;
 
@@ -248,7 +248,8 @@ class InputFile {
 
 class ObjectFile : public InputFile {
   public:
-    static ObjectFile *create(Context &ctx, MappedFile *mf=nullptr);
+    static ObjectFile *create(Context &ctx, const std::string &filename,
+                              MappedFile *mf = nullptr);
 
     bool is_defined_function(u32 index);
     WasmFunction &get_defined_function(u32 index);
@@ -270,7 +271,7 @@ class ObjectFile : public InputFile {
     void dump(Context &ctx);
 
   private:
-    ObjectFile(Context &ctx, MappedFile *mf);
+    ObjectFile(Context &ctx, const std::string &filename, MappedFile *mf);
 
     std::vector<std::unique_ptr<InputSection>> sections;
 

@@ -37,6 +37,8 @@ class MappedFile {
     u8 *data = nullptr;
     i64 size = 0;
 
+    MappedFile *thin_parent = nullptr;
+
     int fd = -1;
 };
 
