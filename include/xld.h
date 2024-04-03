@@ -301,6 +301,12 @@ class ObjectFile : public InputFile {
     // datacount section
     u32 data_count = 0;
     std::vector<WasmDataSegment> data_segments;
+
+    u32 num_imported_globals = 0;
+    u32 num_imported_functions = 0;
+    u32 num_imported_tables = 0;
+    u32 num_imported_memories = 0;
+
 };
 
 class InputSection {
