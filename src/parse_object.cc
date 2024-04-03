@@ -181,11 +181,11 @@ void ObjectFile::parse_linking_sec(Context &ctx, const u8 *&p, const u32 size) {
                         if ((flags & wasm::WASM_SYMBOL_EXPLICIT_NAME) != 0) {
                             symbol_name = parse_name(p);
                             import_name = import.field;
-                            import_module = import.module;
                         } else {
                             symbol_name = import.field;
                         }
                         signature = &signatures[import.sig_index];
+                        import_module = import.module;
                     }
                     info = WasmSymbolInfo{.name = symbol_name,
                                           .kind = type,
@@ -195,41 +195,44 @@ void ObjectFile::parse_linking_sec(Context &ctx, const u8 *&p, const u32 size) {
                                           .export_name = std::nullopt,
                                           .value = {.element_index = index}};
                 } break;
-                case WASM_SYMBOL_TYPE_TABLE:
+                case WASM_SYMBOL_TYPE_TABLE: {
+                    Fatal(ctx) << "unimplemented wasm_symbol_type_table"
+                               << " in linking section";
+                } break;
                 case WASM_SYMBOL_TYPE_GLOBAL: {
-                    bool index_references_import =
-                        (flags & WASM_SYMBOL_UNDEFINED) &&
-                        !(flags & WASM_SYMBOL_EXPLICIT_NAME);
                     u32 index = parse_varuint32(p);
                     // linking name
                     std::string symbol_name;
                     std::optional<std::string> import_module;
                     std::optional<std::string> import_name;
 
-                    if (index_references_import) {
-                        // name is taken from the import
-                        // linear search in all imports
-                        int current_index = 0;
-                        for (int k = 0;; k++) {
-                            if (k >= this->imports.size())
-                                Error(ctx) << "index=" << index
-                                           << " in syminfo is corrupsed";
-                            WasmImport imp = this->imports[k];
-                            if (import_kind_eq_symtype(imp.kind, type)) {
-                                if (current_index == index) {
-                                    import_module = imp.module;
-                                    import_name = imp.field;
-                                    symbol_name = imp.field;
-                                    break;
-                                }
-                                current_index++;
-                            }
-                        }
-                        if (!import_module.has_value())
-                            Error(ctx) << "Corrupsed index=" << index;
-                    } else {
-                        symbol_name = parse_name(p);
+                    if (!is_defined &&
+                        (flags & wasm::WASM_SYMBOL_BINDING_MASK) ==
+                            wasm::WASM_SYMBOL_BINDING_WEAK) {
+                        Error(ctx) << "Undefined weak symbol";
                     }
+
+                    if (is_defined) {
+                        symbol_name = parse_name(p);
+                        if (!is_defined_global(index))
+                            Error(ctx) << "global index=" << index
+                                       << " is out of range";
+                        WasmGlobal &global = get_defined_global(index);
+                        global_type = &global.type;
+                        if (global.symbol_name.empty())
+                            global.symbol_name = symbol_name;
+                    } else {
+                        WasmImport &import = *imported_globals[index];
+                        if ((flags & wasm::WASM_SYMBOL_EXPLICIT_NAME) != 0) {
+                            symbol_name = parse_name(p);
+                            import_name = import.field;
+                        } else {
+                            symbol_name = import.field;
+                        }
+                        global_type = &import.global;
+                        import_module = import.module;
+                    }
+
                     info = WasmSymbolInfo{.name = symbol_name,
                                           .kind = type,
                                           .flags = flags,
@@ -237,45 +240,6 @@ void ObjectFile::parse_linking_sec(Context &ctx, const u8 *&p, const u32 size) {
                                           .import_name = import_name,
                                           .export_name = std::nullopt,
                                           .value = {.element_index = index}};
-
-                    // if the symbol is defined in this module, get reference to
-                    // it.
-                    if (!(info.flags & wasm::WASM_SYMBOL_UNDEFINED)) {
-                        switch (type) {
-                        case WASM_SYMBOL_TYPE_FUNCTION: {
-                            if (is_defined_function(index)) {
-                                WasmFunction &func =
-                                    get_defined_function(index);
-                                // Set symbol name to function
-                                func.symbol_name = info.name;
-                                signature = &this->signatures[func.sig_index];
-                            } else {
-                                Error(ctx) << "function index=" << index
-                                           << " is out of range";
-                            }
-                        } break;
-                        case WASM_SYMBOL_TYPE_TABLE: {
-                            /*
-                            if (index >= this->tables.size())
-                                Fatal(ctx) << "table index=" << index
-                                           << " is out of range";
-                            table_type = &this->tables[index];
-                            */
-                            Fatal(ctx) << "TODO: handle table in symbol table";
-                        } break;
-                        case WASM_SYMBOL_TYPE_GLOBAL: {
-                            if (is_defined_global(index)) {
-                                WasmGlobal &global = get_defined_global(index);
-                                global.symbol_name = info.name;
-                                global_type = &global.type;
-                            } else
-                                Fatal(ctx) << "global index=" << index
-                                           << " is out of range";
-                        } break;
-                        default:
-                            Fatal(ctx) << "unknown symbol type: " << (int)type;
-                        }
-                    }
                 } break;
                 case WASM_SYMBOL_TYPE_DATA: {
                     std::string name = parse_name(p);
