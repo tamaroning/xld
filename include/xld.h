@@ -249,8 +249,6 @@ class ObjectFile : public InputFile {
   public:
     static ObjectFile *create(Context &ctx, MappedFile *mf);
 
-    void resolve_symbols(Context &ctx);
-
     bool is_defined_function(u32 index);
     WasmFunction &get_defined_function(u32 index);
     bool is_defined_global(u32 index);
@@ -258,8 +256,6 @@ class ObjectFile : public InputFile {
     bool is_defined_memories(u32 index);
     WasmLimits &get_defined_memories(u32 index);
     
-    // --- parser ---
-
     void parse(Context &ctx);
     // parse custom sections
     void parse_linking_sec(Context &ctx, const u8 *&p, const u32 size);
@@ -268,7 +264,7 @@ class ObjectFile : public InputFile {
     // parse misc
     WasmInitExpr parse_init_expr(Context &ctx, const u8 *&data);
 
-    // --- debug ---
+    void resolve_symbols(Context &ctx);
 
     void dump(Context &ctx);
 
