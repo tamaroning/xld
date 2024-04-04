@@ -277,9 +277,6 @@ class ObjectFile : public InputFile {
 
     void dump(Context &ctx);
 
-  private:
-    ObjectFile(Context &ctx, const std::string &filename, MappedFile *mf);
-
     std::vector<std::unique_ptr<InputSection>> sections;
 
     std::vector<WasmSignature> signatures;
@@ -320,6 +317,9 @@ class ObjectFile : public InputFile {
     u32 num_imported_functions = 0;
     u32 num_imported_tables = 0;
     u32 num_imported_memories = 0;
+
+  private:
+    ObjectFile(Context &ctx, const std::string &filename, MappedFile *mf);
 };
 
 class InputSection {
