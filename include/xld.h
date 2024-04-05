@@ -1,5 +1,6 @@
 #pragma once
 
+#include "common/common.h"
 #include "common/mmap.h"
 #include "common/system.h"
 #include "object/wao_basic.h"
@@ -344,7 +345,7 @@ class InputFragment {
         : data(data), file(file), file_ofs(file_ofs) {}
 
     std::span<const u8> data;
-    const u64 file_ofs = 0;
+    const u64 file_ofs;
     InputFile *file;
 };
 
@@ -387,22 +388,54 @@ class OutputFile {
 
 // chunk.cc
 
-class OutputSection;
+class OutputDataInfo {
+  public:
+    OutputDataInfo(u32 offset, u32 size) : offset(offset), size(size) {}
+
+    // The offset of the data in the output file.
+    u64 offset;
+    // The size of the data in the output file.
+    u64 size;
+};
 
 class Chunk {
   public:
+    Chunk() : name("<unknown>"), out(OutputDataInfo(0, 0)) {}
     virtual ~Chunk() = default;
+
     // virtual OutputSection *to_osec() { return nullptr; }
-    virtual void copy_buf(Context &ctx) {}
-    virtual void write_to(Context &ctx, u8 *buf) { unreachable(); }
-    virtual void update_shdr(Context &ctx) {}
+    virtual void copy_buf(Context &ctx) = 0;
+    // virtual void write_to(Context &ctx, u8 *buf) { unreachable(); }
+    virtual u64 calculate_size(Context &ctx) = 0;
 
     std::string_view name;
+    OutputDataInfo out;
 };
 
 class OutputWhdr : public Chunk {
   public:
     OutputWhdr() { this->name = "WHDR"; }
+
+    void copy_buf(Context &ctx) override;
+    u64 calculate_size(Context &ctx) override {
+        return sizeof(WasmObjectHeader);
+    }
+};
+
+class GlobalSection : public Chunk {
+  public:
+    GlobalSection() { this->name = "GLOBAL"; }
+
+    void copy_buf(Context &ctx) override;
+    u64 calculate_size(Context &ctx) override { return 0; }
+
+    std::vector<WasmGlobal *> globals;
+};
+
+/*
+class MergedSection : public Chunk {
+  public:
+    MergedSection(std::string_view name) { this->name = name; }
 
     void copy_buf(Context &ctx) override;
 };
@@ -417,5 +450,6 @@ class OutputSection : public Chunk {
 
     std::vector<InputSection *> members;
 };
+*/
 
 } // namespace xld::wasm

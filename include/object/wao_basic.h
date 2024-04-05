@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include "common/common.h"
 #include "common/integers.h"
 #include "common/system.h"
 #include <string>
@@ -299,9 +300,8 @@ struct WasmGlobal {
     WasmGlobalType type;
     WasmInitExpr init_expr;
     std::string symbol_name; // from the "linking" section
-    // uint32_t offset; // Offset of the definition in the binary's Global
-    // section uint32_t size;   // Size of the definition in the binary's Global
-    // section
+    // TODO:
+    //InputFragment original;
 };
 
 struct WasmLimits {
@@ -371,11 +371,11 @@ struct WasmInitFunc {
 struct WasmLinkingData {
     uint32_t version;
     std::vector<WasmInitFunc> init_functions;
-    //std::vector<std::string> comdats;
-    // The linking section also contains a symbol table. This info (represented
-    // in a WasmSymbolInfo struct) is stored inside the WasmSymbol object
-    // instead of in this structure; this allows vectors of WasmSymbols and
-    // WasmLinkingDatas to be reallocated.
+    // std::vector<std::string> comdats;
+    //  The linking section also contains a symbol table. This info (represented
+    //  in a WasmSymbolInfo struct) is stored inside the WasmSymbol object
+    //  instead of in this structure; this allows vectors of WasmSymbols and
+    //  WasmLinkingDatas to be reallocated.
 };
 
 // Represents the location of a Wasm data symbol within a WasmDataSegment, as

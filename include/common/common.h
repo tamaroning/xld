@@ -1,6 +1,9 @@
+#pragma once
+
 #include "common/integers.h"
 #include <cstring>
 #include <memory>
+#include <span>
 #include <string>
 #include <string_view>
 
