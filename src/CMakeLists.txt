@@ -5,6 +5,7 @@ target_sources(xld PRIVATE
     parse_object.cc
     input_file.cc
     pass.cc
+    chunk.cc
     )
 target_link_libraries(xld PRIVATE
     headers

@@ -2,6 +2,7 @@
 #include "common/file.h"
 #include "common/filetype.h"
 #include "common/mmap.h"
+#include "common/output_file.h"
 #include "xld.h"
 
 namespace xld::wasm {
@@ -97,6 +98,11 @@ int linker_main(int argc, char **argv) {
     // fix_synthetic_symbols(ctx);
 
     // At this point, both memory and file layouts are fixed.
+
+    // https://github.com/tamaroning/mold/blob/3df7c8e89c507865abe0fad4ff5355f4d328f78d/elf/main.cc#L637
+    auto output_file =
+        OutputFile<Context>::open(ctx, "a.wasm", 1 * 1024 * 1024, 0777);
+    ctx.buf = output_file->buf;
 
     return 0;
 }

@@ -3,13 +3,6 @@
 
 namespace xld {
 
-std::string errno_string() {
-    // strerror is not thread-safe, so guard it with a lock.
-    static std::mutex mu;
-    std::scoped_lock lock(mu);
-    return strerror(errno);
-}
-
 MappedFile *open_file_impl(const std::string &path, std::string &error) {
     i64 fd = ::open(path.c_str(), O_RDONLY);
     if (fd == -1) {

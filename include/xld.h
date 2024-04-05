@@ -168,6 +168,7 @@ struct Context {
     // object pools
     tbb::concurrent_vector<std::unique_ptr<ObjectFile>> obj_pool;
     tbb::concurrent_vector<std::unique_ptr<MappedFile>> mf_pool;
+    tbb::concurrent_vector<std::unique_ptr<u8[]>> string_pool;
 
     // Symbol table
     // TODO: use xxHash
@@ -181,6 +182,8 @@ struct Context {
         bool color_diagnostics = true;
         std::string chroot;
     } arg;
+
+    u8 *buf = nullptr;
 };
 
 class Symbol {
@@ -197,8 +200,10 @@ class Symbol {
     bool is_defined() const { return file != nullptr; }
     bool is_undefined() const { return file == nullptr; }
 
-    bool is_imported = false;
-    bool is_exported = false;
+    // bool is_imported = false;
+    // bool is_exported = false;
+
+    bool is_used_in_regular_obj = false;
 
     enum class Binding {
         Weak,
@@ -220,6 +225,8 @@ inline Symbol *get_symbol(Context &ctx, std::string_view name) {
 void resolve_symbols(Context &);
 
 void create_internal_file(Context &);
+
+// input_file.cc parse_object.cc
 
 class InputFile {
   public:
@@ -329,6 +336,8 @@ class InputSection {
         : sec_id(sec_id), content(content), file(file), file_ofs(file_ofs),
           name(name) {}
 
+    void write_to(Context &ctx, u8 *buf);
+
     u8 sec_id = 0;
     std::string name;
     std::span<const u8> content;
@@ -336,6 +345,63 @@ class InputSection {
     // offset to the secton content
     u64 file_ofs = 0;
     std::vector<WasmRelocation> relocs;
+};
+
+// output_file.cc
+
+template <typename Context>
+class OutputFile {
+  public:
+    static std::unique_ptr<OutputFile<Context>>
+    open(Context &ctx, std::string path, i64 filesize, i64 perm);
+
+    virtual void close(Context &ctx) = 0;
+    virtual ~OutputFile() = default;
+
+    u8 *buf = nullptr;
+    std::vector<u8> buf2;
+    std::string path;
+    i64 fd = -1;
+    i64 filesize = 0;
+    bool is_mmapped = false;
+    bool is_unmapped = false;
+
+  protected:
+    OutputFile(std::string path, i64 filesize, bool is_mmapped)
+        : path(path), filesize(filesize), is_mmapped(is_mmapped) {}
+};
+
+// chunk.cc
+
+class OutputSection;
+
+class Chunk {
+  public:
+    virtual ~Chunk() = default;
+    // virtual OutputSection *to_osec() { return nullptr; }
+    virtual void copy_buf(Context &ctx) {}
+    virtual void write_to(Context &ctx, u8 *buf) { unreachable(); }
+    virtual void update_shdr(Context &ctx) {}
+
+    std::string_view name;
+};
+
+class OutputWhdr : public Chunk {
+  public:
+    OutputWhdr() { this->name = "WHDR"; }
+
+    void copy_buf(Context &ctx) override;
+};
+
+class OutputSection : public Chunk {
+  public:
+    OutputSection(std::string_view name) { this->name = name; }
+
+    // OutputSection *to_osec() override { return this; }
+    void copy_buf(Context &ctx) override;
+    void write_to(Context &ctx, u8 *buf) override;
+
+    std::vector<InputSection *> members;
 };
 
 } // namespace xld::wasm

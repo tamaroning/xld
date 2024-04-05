@@ -1,13 +1,12 @@
 #pragma once
 
+#include "common.h"
 #include "common/mmap.h"
 #include "xld.h"
 #include <filesystem>
 #include <sys/stat.h>
 
 namespace xld {
-
-std::string errno_string();
 
 MappedFile *open_file_impl(const std::string &path, std::string &error);
 
