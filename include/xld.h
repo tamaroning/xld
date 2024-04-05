@@ -338,21 +338,26 @@ class ObjectFile : public InputFile {
     ObjectFile(Context &ctx, const std::string &filename, MappedFile *mf);
 };
 
+class InputFragment {
+  public:
+    InputFragment(std::span<const u8> data, InputFile *file, u64 file_ofs)
+        : data(data), file(file), file_ofs(file_ofs) {}
+
+    std::span<const u8> data;
+    const u64 file_ofs = 0;
+    InputFile *file;
+};
+
 class InputSection {
   public:
-    InputSection(u8 sec_id, std::span<const u8> content, InputFile *file,
-                 u64 file_ofs, std::string name)
-        : sec_id(sec_id), content(content), file(file), file_ofs(file_ofs),
-          name(name) {}
+    InputSection(u8 sec_id, std::string name, InputFragment content)
+        : sec_id(sec_id), name(name), content(content) {}
 
-    void write_to(Context &ctx, u8 *buf);
+    // void write_to(Context &ctx, u8 *buf);
 
     u8 sec_id = 0;
     std::string name;
-    std::span<const u8> content;
-    InputFile *file;
-    // offset to the secton content
-    u64 file_ofs = 0;
+    InputFragment content;
     std::vector<WasmRelocation> relocs;
 };
 

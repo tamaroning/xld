@@ -848,8 +848,8 @@ void ObjectFile::parse(Context &ctx) {
                 << content_size;
         }
 
-        this->sections.push_back(
-            InputSection(sec_id, content, this, content_ofs, sec_name));
+        this->sections.push_back(InputSection(
+            sec_id, sec_name, InputFragment(content, this, content_ofs)));
     }
 
     this->dump(ctx);
@@ -859,8 +859,9 @@ void ObjectFile::dump(Context &ctx) {
     Debug(ctx) << "=== " << this->mf->name << " ===";
     for (auto &sec : this->sections) {
         Debug(ctx) << std::hex << "Section: " << sec_id_as_str(sec.sec_id)
-                   << "(name=" << sec.name << ", offset=0x" << sec.file_ofs
-                   << ", size=0x" << sec.content.size() << ")";
+                   << "(name=" << sec.name << ", offset=0x"
+                   << sec.content.file_ofs << ", size=0x"
+                   << sec.content.data.size() << ")";
         switch (sec.sec_id) {
         case WASM_SEC_TYPE: {
             for (int i = 0; i < this->signatures.size(); i++) {
