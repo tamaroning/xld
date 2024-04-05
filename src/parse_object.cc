@@ -104,7 +104,7 @@ static wasm::ValType parse_val_type(const u8 *&data, u32 code) {
     return wasm::ValType(wasm::ValType::OTHERREF);
 }
 
-std::string_view sec_id_as_str(u8 sec_id) {
+static std::string_view sec_id_as_str(u8 sec_id) {
     switch (sec_id) {
     case WASM_SEC_CUSTOM:
         return "custom";
@@ -371,7 +371,7 @@ void ObjectFile::parse_reloc_sec(Context &ctx, const u8 *&p, const u32 size) {
             addend = parse_varint32(p);
             break;
         }
-        this->sections[sec_idx]->relocs.push_back(WasmRelocation{
+        this->sections[sec_idx].relocs.push_back(WasmRelocation{
             .type = type,
             .index = index,
             .offset = offset,
@@ -848,8 +848,8 @@ void ObjectFile::parse(Context &ctx) {
                 << content_size;
         }
 
-        this->sections.push_back(std::unique_ptr<InputSection>(
-            new InputSection(sec_id, content, this, content_ofs, sec_name)));
+        this->sections.push_back(
+            InputSection(sec_id, content, this, content_ofs, sec_name));
     }
 
     this->dump(ctx);
@@ -858,10 +858,10 @@ void ObjectFile::parse(Context &ctx) {
 void ObjectFile::dump(Context &ctx) {
     Debug(ctx) << "=== " << this->mf->name << " ===";
     for (auto &sec : this->sections) {
-        Debug(ctx) << std::hex << "Section: " << sec_id_as_str(sec->sec_id)
-                   << "(name=" << sec->name << ", offset=0x" << sec->file_ofs
-                   << ", size=0x" << sec->content.size() << ")";
-        switch (sec->sec_id) {
+        Debug(ctx) << std::hex << "Section: " << sec_id_as_str(sec.sec_id)
+                   << "(name=" << sec.name << ", offset=0x" << sec.file_ofs
+                   << ", size=0x" << sec.content.size() << ")";
+        switch (sec.sec_id) {
         case WASM_SEC_TYPE: {
             for (int i = 0; i < this->signatures.size(); i++) {
                 Debug(ctx) << "  - type[" << i << "]";
@@ -939,7 +939,7 @@ void ObjectFile::dump(Context &ctx) {
             }
         } break;
         case WASM_SEC_CUSTOM: {
-            if (sec->name == "linking") {
+            if (sec.name == "linking") {
                 for (int i = 0; i < this->symbols.size(); i++) {
                     WasmSymbol sym = this->symbols[i];
                     std::string symname =
@@ -956,8 +956,8 @@ void ObjectFile::dump(Context &ctx) {
             }
         } break;
         }
-        if (sec->relocs.size())
-            Debug(ctx) << "  - num relocs: " << sec->relocs.size();
+        if (sec.relocs.size())
+            Debug(ctx) << "  - num relocs: " << sec.relocs.size();
     }
 
     /*

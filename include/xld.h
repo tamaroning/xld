@@ -11,6 +11,7 @@ class InputFile;
 class ObjectFile;
 class Symbol;
 class InputSection;
+class Chunk;
 
 } // namespace xld::wasm
 
@@ -169,6 +170,7 @@ struct Context {
     tbb::concurrent_vector<std::unique_ptr<ObjectFile>> obj_pool;
     tbb::concurrent_vector<std::unique_ptr<MappedFile>> mf_pool;
     tbb::concurrent_vector<std::unique_ptr<u8[]>> string_pool;
+    tbb::concurrent_vector<std::unique_ptr<Chunk>> chunk_pool;
 
     // Symbol table
     // TODO: use xxHash
@@ -176,6 +178,9 @@ struct Context {
 
     // Input files
     std::vector<InputFile *> files;
+
+    // Output chunks
+    std::vector<Chunk *> chunks;
 
     // Command-line arguments
     struct {
@@ -225,6 +230,10 @@ inline Symbol *get_symbol(Context &ctx, std::string_view name) {
 void resolve_symbols(Context &);
 
 void create_internal_file(Context &);
+
+void create_synthetic_sections(Context &);
+
+void copy_chunks(Context &);
 
 // input_file.cc parse_object.cc
 
@@ -284,7 +293,7 @@ class ObjectFile : public InputFile {
 
     void dump(Context &ctx);
 
-    std::vector<std::unique_ptr<InputSection>> sections;
+    std::vector<InputSection> sections;
 
     std::vector<WasmSignature> signatures;
 

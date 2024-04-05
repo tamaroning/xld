@@ -1,6 +1,5 @@
 #include "object/wao_basic.h"
 #include "object/wao_symbol.h"
-#include "wasm.h"
 #include "xld.h"
 
 namespace xld::wasm {
@@ -82,6 +81,24 @@ void create_internal_file(Context &ctx) {
     obj->globals.push_back(stack_pointer_g);
 
     ctx.files.push_back(obj);
+}
+
+void create_synthetic_sections(Context &ctx) {
+    Warn(ctx) << "TODO: whdr";
+    auto push = [&](Chunk *s) {
+        ctx.chunks.push_back(s);
+        ctx.chunk_pool.emplace_back(s);
+    };
+
+    push(new OutputWhdr());
+}
+
+void copy_chunks(Context &ctx) {
+    Warn(ctx) << "TODO: copy_chunks";
+    tbb::parallel_for_each(ctx.chunks, [&](Chunk *chunk) {
+        Debug(ctx) << "Copying chunk: " << chunk->name;
+        chunk->copy_buf(ctx);
+    });
 }
 
 } // namespace xld::wasm

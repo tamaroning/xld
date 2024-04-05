@@ -61,7 +61,7 @@ int linker_main(int argc, char **argv) {
     // compute_import_export(ctx);
 
     // Create linker-synthesized sections
-    // create_synthetic_sections(ctx);
+    create_synthetic_sections(ctx);
 
     // Make sure that there's no duplicate symbol
     // if (!ctx.arg.allow_multiple_definition)
@@ -100,9 +100,13 @@ int linker_main(int argc, char **argv) {
     // At this point, both memory and file layouts are fixed.
 
     // https://github.com/tamaroning/mold/blob/3df7c8e89c507865abe0fad4ff5355f4d328f78d/elf/main.cc#L637
-    auto output_file =
-        OutputFile<Context>::open(ctx, "a.wasm", 1 * 1024 * 1024, 0777);
+    size_t size = 1 * 1024;
+    auto output_file = OutputFile<Context>::open(ctx, "a.wasm", size, 0777);
     ctx.buf = output_file->buf;
+
+    copy_chunks(ctx);
+
+    output_file->close(ctx);
 
     return 0;
 }
