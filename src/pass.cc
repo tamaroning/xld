@@ -1,4 +1,5 @@
 #include "common/log.h"
+#include "wasm/object.h"
 #include "xld.h"
 
 namespace xld::wasm {
@@ -52,15 +53,18 @@ void create_internal_file(Context &ctx) {
     };
     WasmSymbol stack_pointer_s(stack_pointer_info, &global_type_i32, nullptr,
                                nullptr);
-    WasmGlobal stack_pointer_g = WasmGlobal{
-        .type =
-            WasmGlobalType{
-                .type = ValType(WASM_TYPE_I32),
-                .mut = false,
-            },
-        .init_expr = int_const(0),
-        .symbol_name = "__stack_pointer",
-    };
+    // TODO: writeInitExpr equivalent
+    // https://github.com/llvm/llvm-project/blob/e6f63a942a45e3545332cd9a43982a69a4d5667b/lld/wasm/WriterUtils.cpp#L169
+    std::string *sp = new std::string("\x7f\x01\x41\x80\x88\x04\x0b");
+    WasmGlobal stack_pointer_g =
+        WasmGlobal{.type =
+                       WasmGlobalType{
+                           .type = ValType(WASM_TYPE_I32),
+                           .mut = false,
+                       },
+                   .init_expr = int_const(0),
+                   .symbol_name = "__stack_pointer",
+                   .span = std::span<u8>((u8 *)sp->data(), sp->size())};
     get_symbol(ctx, "__stack_pointer")->is_alive = true;
 
     obj->symbols.push_back(stack_pointer_s);
@@ -70,17 +74,26 @@ void create_internal_file(Context &ctx) {
 }
 
 void create_synthetic_sections(Context &ctx) {
-    Warn(ctx) << "TODO: whdr";
     auto push = [&](Chunk *s) {
         ctx.chunks.push_back(s);
         ctx.chunk_pool.emplace_back(s);
     };
 
-    push(new OutputWhdr());
+    push(ctx.whdr = new OutputWhdr());
+    push(ctx.global = new GlobalSection());
+
+    tbb::parallel_for_each(ctx.files, [&](InputFile *file) {
+        if (file->kind != InputFile::Object) {
+            return;
+        }
+        ObjectFile *obj = static_cast<ObjectFile *>(file);
+        for (WasmGlobal &g : obj->globals) {
+            ctx.global->globals.emplace_back(&g);
+        }
+    });
 }
 
 void copy_chunks(Context &ctx) {
-    Warn(ctx) << "TODO: copy_chunks";
     tbb::parallel_for_each(ctx.chunks, [&](Chunk *chunk) {
         Debug(ctx) << "Copying chunk: " << chunk->name;
         chunk->copy_buf(ctx);

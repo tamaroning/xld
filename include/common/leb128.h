@@ -22,6 +22,7 @@
 #endif
 
 #include "common/integers.h"
+#include <ostream>
 
 namespace xld {
 
@@ -88,10 +89,7 @@ inline unsigned encodeSLEB128(int64_t Value, uint8_t *p, unsigned PadTo = 0) {
 }
 */
 
-/*
-/// Utility function to encode a ULEB128 value to an output stream. Returns
-/// the length in bytes of the encoded value.
-inline unsigned encodeULEB128(uint64_t Value, raw_ostream &OS,
+inline unsigned encode_uleb128(uint64_t Value, std::ostream &OS,
                               unsigned PadTo = 0) {
     unsigned Count = 0;
     do {
@@ -112,12 +110,10 @@ inline unsigned encodeULEB128(uint64_t Value, raw_ostream &OS,
     }
     return Count;
 }
-*/
 
-/*
 /// Utility function to encode a ULEB128 value to a buffer. Returns
 /// the length in bytes of the encoded value.
-inline unsigned encodeULEB128(uint64_t Value, uint8_t *p, unsigned PadTo = 0) {
+inline unsigned encode_uleb128(uint64_t Value, uint8_t *p, unsigned PadTo = 0) {
     uint8_t *orig_p = p;
     unsigned Count = 0;
     do {
@@ -138,7 +134,6 @@ inline unsigned encodeULEB128(uint64_t Value, uint8_t *p, unsigned PadTo = 0) {
 
     return (unsigned)(p - orig_p);
 }
-*/
 
 /// Utility function to decode a ULEB128 value.
 ///

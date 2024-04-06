@@ -3,6 +3,7 @@
 #include "common/common.h"
 #include "common/mmap.h"
 #include "common/system.h"
+#include "xld_private/chunk.h"
 
 namespace xld::wasm {
 
@@ -11,6 +12,8 @@ class InputFile;
 class ObjectFile;
 class Symbol;
 class Chunk;
+class OutputWhdr;
+class GlobalSection;
 
 struct Context {
     Context() {}
@@ -41,6 +44,8 @@ struct Context {
 
     // Output chunks
     std::vector<Chunk *> chunks;
+    OutputWhdr* whdr = nullptr;
+    GlobalSection* global = nullptr;
 
     // Command-line arguments
     struct {

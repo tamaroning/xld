@@ -102,6 +102,7 @@ int linker_main(int argc, char **argv) {
 
     // https://github.com/tamaroning/mold/blob/3df7c8e89c507865abe0fad4ff5355f4d328f78d/elf/main.cc#L637
     size_t size = 1 * 1024;
+    size = 100;
     auto output_file = OutputFile<Context>::open(ctx, "a.wasm", size, 0777);
     ctx.buf = output_file->buf;
 

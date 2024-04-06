@@ -1,5 +1,7 @@
 #pragma once
 
+#include "common/system.h"
+
 #include "xld_private/chunk.h"
 #include "xld_private/context.h"
 #include "xld_private/input_file.h"

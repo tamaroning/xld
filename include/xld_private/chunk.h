@@ -1,9 +1,13 @@
 #pragma once
 
-#include "context.h"
+#include "common/integers.h"
+#include "common/system.h"
 #include "wasm/object.h"
 
 namespace xld::wasm {
+
+// forward-decl
+class Context;
 
 class OutputLocation {
   public:
@@ -47,7 +51,7 @@ class GlobalSection : public Chunk {
     void copy_buf(Context &ctx) override;
     // u64 calculate_size(Context &ctx) override { return 0; }
 
-    std::vector<WasmGlobal *> globals;
+    tbb::concurrent_vector<WasmGlobal *> globals;
 };
 
 } // namespace xld::wasm

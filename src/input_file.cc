@@ -25,7 +25,9 @@ InputFile::InputFile(Context &ctx, const std::string &filename, MappedFile *mf)
 
 ObjectFile::ObjectFile(Context &ctx, const std::string &filename,
                        MappedFile *mf)
-    : InputFile(ctx, filename, mf) {}
+    : InputFile(ctx, filename, mf) {
+    kind = Object;
+}
 
 ObjectFile *ObjectFile::create(Context &ctx, const std::string &filename,
                                MappedFile *mf) {

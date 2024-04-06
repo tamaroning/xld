@@ -769,7 +769,7 @@ void ObjectFile::parse(Context &ctx) {
         } break;
         case WASM_SEC_GLOBAL: {
             std::function<void(const u8 *&)> f = [&](const u8 *&data) {
-                auto beg = data;
+                const u8 *beg = data;
                 const ValType val_type{*data};
                 data++;
                 const bool mut = *data;
