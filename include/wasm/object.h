@@ -18,7 +18,6 @@
 
 #include "common/integers.h"
 #include "common/system.h"
-#include "input_span.h"
 #include <string>
 
 namespace xld::wasm {
@@ -244,7 +243,7 @@ const unsigned WASM_SYMBOL_ABSOLUTE = 0x200;
 #define WASM_RELOC(name, value) name = value,
 
 enum : unsigned {
-#include "xld_private/wasm_relocs.def"
+#include "wasm/wasm_relocs.def"
 };
 
 #undef WASM_RELOC
@@ -300,7 +299,7 @@ struct WasmGlobal {
     WasmGlobalType type;
     WasmInitExpr init_expr;
     std::string symbol_name; // from the "linking" section
-    Span span;
+    std::span<const u8> span;
 };
 
 struct WasmLimits {

@@ -2,7 +2,7 @@
 
 #include "common/mmap.h"
 #include "common/system.h"
-#include "wasm_symbol.h"
+#include "wasm/symbol.h"
 
 namespace xld::wasm {
 

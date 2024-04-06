@@ -2,8 +2,7 @@
 
 #include "common/mmap.h"
 #include "input_file.h"
-#include "input_span.h"
-#include "wasm_object.h"
+#include "wasm/object.h"
 
 namespace xld::wasm {
 
@@ -12,14 +11,14 @@ class Context;
 
 class InputSection {
   public:
-    InputSection(u8 sec_id, std::string name, Span span)
+    InputSection(u8 sec_id, std::string name, std::span<const u8> span)
         : sec_id(sec_id), name(name), span(span) {}
 
     // void write_to(Context &ctx, u8 *buf);
 
     u8 sec_id = 0;
     std::string name;
-    Span span;
+    std::span<const u8> span;
     std::vector<WasmRelocation> relocs;
 };
 

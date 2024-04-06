@@ -1,5 +1,5 @@
 #pragma once
-#include "wasm_object.h"
+#include "object.h"
 
 // Copy of LLVM
 

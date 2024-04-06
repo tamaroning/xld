@@ -1,7 +1,6 @@
 #pragma once
 
 #include "context.h"
-#include "input_span.h"
 #include <string_view>
 
 namespace xld::wasm {

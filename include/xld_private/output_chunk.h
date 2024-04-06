@@ -1,7 +1,7 @@
 #pragma once
 
 #include "context.h"
-#include "wasm_object.h"
+#include "wasm/object.h"
 
 namespace xld::wasm {
 
