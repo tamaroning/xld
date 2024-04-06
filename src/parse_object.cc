@@ -770,6 +770,7 @@ void ObjectFile::parse(Context &ctx) {
         } break;
         case WASM_SEC_GLOBAL: {
             std::function<void(const u8 *&)> f = [&](const u8 *&data) {
+                auto beg = data;
                 const ValType val_type{*data};
                 data++;
                 const bool mut = *data;
@@ -779,6 +780,12 @@ void ObjectFile::parse(Context &ctx) {
                     .type = {.type = val_type, .mut = mut},
                     .init_expr = init_expr,
                     .symbol_name = "",
+                    .original =
+                        InputFragment{
+                            .data = std::span<const u8>(beg, data),
+                            .file = this,
+                            .file_ofs = static_cast<u64>(beg - this->mf->data)},
+
                 });
             };
             foreach_vec(p, f);
@@ -849,7 +856,9 @@ void ObjectFile::parse(Context &ctx) {
         }
 
         this->sections.push_back(InputSection(
-            sec_id, sec_name, InputFragment(content, this, content_ofs)));
+            sec_id, sec_name,
+            InputFragment{
+                .data = content, .file = this, .file_ofs = content_ofs}));
     }
 
     this->dump(ctx);

@@ -339,16 +339,6 @@ class ObjectFile : public InputFile {
     ObjectFile(Context &ctx, const std::string &filename, MappedFile *mf);
 };
 
-class InputFragment {
-  public:
-    InputFragment(std::span<const u8> data, InputFile *file, u64 file_ofs)
-        : data(data), file(file), file_ofs(file_ofs) {}
-
-    std::span<const u8> data;
-    const u64 file_ofs;
-    InputFile *file;
-};
-
 class InputSection {
   public:
     InputSection(u8 sec_id, std::string name, InputFragment content)
