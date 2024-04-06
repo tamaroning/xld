@@ -780,11 +780,10 @@ void ObjectFile::parse(Context &ctx) {
                     .type = {.type = val_type, .mut = mut},
                     .init_expr = init_expr,
                     .symbol_name = "",
-                    .original =
-                        Span{
-                            .data = std::span<const u8>(beg, data),
-                            .file = this,
-                            .file_ofs = static_cast<u64>(beg - this->mf->data)},
+                    .span = Span{.data = std::span<const u8>(beg, data),
+                                 .file = this,
+                                 .file_ofs =
+                                     static_cast<u64>(beg - this->mf->data)},
 
                 });
             };
@@ -857,8 +856,7 @@ void ObjectFile::parse(Context &ctx) {
 
         this->sections.push_back(InputSection(
             sec_id, sec_name,
-            Span{
-                .data = content, .file = this, .file_ofs = content_ofs}));
+            Span{.data = content, .file = this, .file_ofs = content_ofs}));
     }
 
     this->dump(ctx);
@@ -868,9 +866,8 @@ void ObjectFile::dump(Context &ctx) {
     Debug(ctx) << "=== " << this->mf->name << " ===";
     for (auto &sec : this->sections) {
         Debug(ctx) << std::hex << "Section: " << sec_id_as_str(sec.sec_id)
-                   << "(name=" << sec.name << ", offset=0x"
-                   << sec.content.file_ofs << ", size=0x"
-                   << sec.content.data.size() << ")";
+                   << "(name=" << sec.name << ", offset=0x" << sec.span.file_ofs
+                   << ", size=0x" << sec.span.data.size() << ")";
         switch (sec.sec_id) {
         case WASM_SEC_TYPE: {
             for (int i = 0; i < this->signatures.size(); i++) {

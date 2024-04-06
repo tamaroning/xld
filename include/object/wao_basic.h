@@ -301,8 +301,7 @@ struct WasmGlobal {
     WasmGlobalType type;
     WasmInitExpr init_expr;
     std::string symbol_name; // from the "linking" section
-    // TODO:
-    Span original;
+    Span span;
 };
 
 struct WasmLimits {
