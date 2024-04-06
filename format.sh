@@ -1,1 +1,1 @@
-clang-format src/**/* include/**/* -i
+clang-format-19 src/**/* include/**/* -i
