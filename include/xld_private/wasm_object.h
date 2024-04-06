@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include "common/common.h"
 #include "common/integers.h"
 #include "common/system.h"
 #include "input_span.h"
@@ -245,7 +244,7 @@ const unsigned WASM_SYMBOL_ABSOLUTE = 0x200;
 #define WASM_RELOC(name, value) name = value,
 
 enum : unsigned {
-#include "object/wasm_relocs.def"
+#include "xld_private/wasm_relocs.def"
 };
 
 #undef WASM_RELOC

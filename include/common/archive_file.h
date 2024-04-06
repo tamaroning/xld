@@ -26,8 +26,8 @@
 #pragma once
 
 #include "common/file.h"
-#include "common/system.h"
 #include "common/filetype.h"
+#include "common/system.h"
 
 namespace xld {
 
@@ -75,7 +75,7 @@ struct ArHdr {
     }
 };
 
-template <typename Context, typename MappedFile>
+template <typename Context>
 std::vector<MappedFile *> read_thin_archive_members(Context &ctx,
                                                     MappedFile *mf) {
     u8 *begin = mf->data;
@@ -127,7 +127,7 @@ std::vector<MappedFile *> read_thin_archive_members(Context &ctx,
     return vec;
 }
 
-template <typename Context, typename MappedFile>
+template <typename Context>
 std::vector<MappedFile *> read_fat_archive_members(Context &ctx,
                                                    MappedFile *mf) {
     u8 *begin = mf->data;
@@ -167,7 +167,7 @@ std::vector<MappedFile *> read_fat_archive_members(Context &ctx,
     return vec;
 }
 
-template <typename Context, typename MappedFile>
+template <typename Context>
 std::vector<MappedFile *> read_archive_members(Context &ctx, MappedFile *mf) {
     switch (get_file_type(ctx, mf)) {
     case FileType::AR:

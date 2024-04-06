@@ -1,4 +1,3 @@
-#include "object/wao_basic.h"
 #include "xld.h"
 
 namespace xld::wasm {

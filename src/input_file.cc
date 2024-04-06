@@ -1,5 +1,5 @@
 
-#include "object/wao_symbol.h"
+#include "common/log.h"
 #include "xld.h"
 
 namespace xld::wasm {

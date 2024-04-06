@@ -1,8 +1,7 @@
 #pragma once
 
-#include "common.h"
+#include "common/log.h"
 #include "common/mmap.h"
-#include "xld.h"
 #include <filesystem>
 #include <sys/stat.h>
 

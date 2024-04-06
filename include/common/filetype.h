@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common/integers.h"
+#include "common/mmap.h"
 #include "common/system.h"
 
 namespace xld {
@@ -14,21 +15,21 @@ enum class FileType {
     TEXT,
 };
 
-template <typename MappedFile>
-bool is_text_file(MappedFile *mf) {
+inline bool is_text_file(MappedFile *mf) {
     u8 *data = mf->data;
     return mf->size >= 4 && isprint(data[0]) && isprint(data[1]) &&
            isprint(data[2]) && isprint(data[3]);
 }
 
-template <typename Context, typename MappedFile>
+template <typename Context>
 FileType get_file_type(Context &ctx, MappedFile *mf) {
     std::string_view data = mf->get_contents();
 
     if (data.empty())
         return FileType::EMPTY;
 
-    if (data[0] == 0x00 && data[1] == 0x61 && data[2] == 0x73 && data[3] == 0x6D)
+    if (data[0] == 0x00 && data[1] == 0x61 && data[2] == 0x73 &&
+        data[3] == 0x6D)
         return FileType::WASM_OBJ;
     if (data.starts_with("!<arch>\n"))
         return FileType::AR;

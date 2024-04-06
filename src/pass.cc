@@ -1,5 +1,4 @@
-#include "object/wao_basic.h"
-#include "object/wao_symbol.h"
+#include "common/log.h"
 #include "xld.h"
 
 namespace xld::wasm {
@@ -24,18 +23,6 @@ void resolve_symbols(Context &ctx) {
         }
     }
 }
-
-/*
-static UndefinedGlobal *
-createUndefinedGlobal(StringRef name, llvm::wasm::WasmGlobalType *type) {
-    auto *sym = cast<UndefinedGlobal>(
-        symtab->addUndefinedGlobal(name, std::nullopt, std::nullopt,
-                                   WASM_SYMBOL_UNDEFINED, nullptr, type));
-    config->allowUndefinedSymbols.insert(sym->getName());
-    sym->isUsedInRegularObj = true;
-    return sym;
-}
-*/
 
 static WasmInitExpr int_const(u64 value) {
     WasmInitExpr ie;

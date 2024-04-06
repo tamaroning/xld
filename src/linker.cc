@@ -3,6 +3,7 @@
 #include "common/filetype.h"
 #include "common/mmap.h"
 #include "common/output_file.h"
+#include "pass.h"
 #include "xld.h"
 
 namespace xld::wasm {
@@ -62,9 +63,6 @@ int linker_main(int argc, char **argv) {
 
     // Create linker-synthesized sections
     create_synthetic_sections(ctx);
-
-    // https://github.com/llvm/llvm-project/blob/e6f63a942a45e3545332cd9a43982a69a4d5667b/lld/wasm/Writer.cpp#L971
-
 
     // Make sure that there's no duplicate symbol
     // if (!ctx.arg.allow_multiple_definition)

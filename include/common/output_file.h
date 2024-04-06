@@ -4,6 +4,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <vector>
 
 namespace xld::wasm {
 
@@ -51,6 +52,28 @@ open_or_create_file(Context &ctx, std::string path, i64 filesize, i64 perm) {
         Fatal(ctx) << "ftruncate failed: " << errno_string();
     return {fd, path2};
 }
+
+template <typename Context>
+class OutputFile {
+  public:
+    static std::unique_ptr<OutputFile<Context>>
+    open(Context &ctx, std::string path, i64 filesize, i64 perm);
+
+    virtual void close(Context &ctx) = 0;
+    virtual ~OutputFile() = default;
+
+    u8 *buf = nullptr;
+    std::vector<u8> buf2;
+    std::string path;
+    i64 fd = -1;
+    i64 filesize = 0;
+    bool is_mmapped = false;
+    bool is_unmapped = false;
+
+  protected:
+    OutputFile(std::string path, i64 filesize, bool is_mmapped)
+        : path(path), filesize(filesize), is_mmapped(is_mmapped) {}
+};
 
 template <typename Context>
 class MemoryMappedOutputFile : public OutputFile<Context> {
@@ -129,7 +152,7 @@ OutputFile<Context>::open(Context &ctx, std::string path, i64 filesize,
 #endif
 
     // TODO: what is this for?
-    //if (ctx.arg.filler != -1)
+    // if (ctx.arg.filler != -1)
     //    memset(file->buf, ctx.arg.filler, filesize);
     return std::unique_ptr<OutputFile>(file);
 }

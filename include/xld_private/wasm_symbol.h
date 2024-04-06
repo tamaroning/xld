@@ -1,5 +1,5 @@
 #pragma once
-#include "wao_basic.h"
+#include "wasm_object.h"
 
 // Copy of LLVM
 
