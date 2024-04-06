@@ -209,7 +209,7 @@ class Symbol {
     // bool is_imported = false;
     // bool is_exported = false;
 
-    bool is_used_in_regular_obj = false;
+    bool is_alive = false;
 
     enum class Binding {
         Weak,

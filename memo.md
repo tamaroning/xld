@@ -45,3 +45,14 @@ https://github.com/bytecodealliance/wasmtime/blob/main/docs/WASI-documents.md
 
 
 /home/tamaron/work/wasi-libc/sysroot
+
+lld
+https://lld.llvm.org/WebAssembly.html
+
+Emscripten
+https://emscripten.org/docs/compiling/Dynamic-Linking.html
+
+https://emscripten.org/docs/optimizing/Optimizing-Code.html
+
+Wasmtime
+https://docs.rs/wasmtime/latest/wasmtime/struct.Linker.html

@@ -17,7 +17,6 @@ void resolve_symbols(Context &ctx) {
                 Symbol *sym = get_symbol(ctx, wsym.info.name);
                 if (sym->is_undefined()) {
                     Error(ctx) << "Undefined symbol: " << wsym.info.name;
-                    sym->is_used_in_regular_obj = true;
                 } else {
                     // Debug(ctx) << "Resolved symbol: " << wsym.info.name;
                 }
@@ -75,7 +74,7 @@ void create_internal_file(Context &ctx) {
         .init_expr = int_const(0),
         .symbol_name = "__stack_pointer",
     };
-    get_symbol(ctx, "__stack_pointer")->is_used_in_regular_obj = true;
+    get_symbol(ctx, "__stack_pointer")->is_alive = true;
 
     obj->symbols.push_back(stack_pointer_s);
     obj->globals.push_back(stack_pointer_g);
