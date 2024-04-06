@@ -341,14 +341,14 @@ class ObjectFile : public InputFile {
 
 class InputSection {
   public:
-    InputSection(u8 sec_id, std::string name, InputFragment content)
+    InputSection(u8 sec_id, std::string name, Span content)
         : sec_id(sec_id), name(name), content(content) {}
 
     // void write_to(Context &ctx, u8 *buf);
 
     u8 sec_id = 0;
     std::string name;
-    InputFragment content;
+    Span content;
     std::vector<WasmRelocation> relocs;
 };
 

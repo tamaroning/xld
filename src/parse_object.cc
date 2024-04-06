@@ -781,7 +781,7 @@ void ObjectFile::parse(Context &ctx) {
                     .init_expr = init_expr,
                     .symbol_name = "",
                     .original =
-                        InputFragment{
+                        Span{
                             .data = std::span<const u8>(beg, data),
                             .file = this,
                             .file_ofs = static_cast<u64>(beg - this->mf->data)},
@@ -857,7 +857,7 @@ void ObjectFile::parse(Context &ctx) {
 
         this->sections.push_back(InputSection(
             sec_id, sec_name,
-            InputFragment{
+            Span{
                 .data = content, .file = this, .file_ofs = content_ofs}));
     }
 

@@ -1,14 +1,13 @@
 #pragma once
 
 #include "common/integers.h"
-#include "common/system.h"
+#include <span>
 
 namespace xld::wasm {
 
 class InputFile;
-class ObjectFile;
 
-struct InputFragment {
+struct Span {
     std::span<const u8> data;
     wasm::InputFile *file;
     u64 file_ofs;

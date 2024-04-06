@@ -19,7 +19,7 @@
 #include "common/common.h"
 #include "common/integers.h"
 #include "common/system.h"
-#include "input_fragment.h"
+#include "input_span.h"
 #include <string>
 
 namespace xld::wasm {
@@ -302,7 +302,7 @@ struct WasmGlobal {
     WasmInitExpr init_expr;
     std::string symbol_name; // from the "linking" section
     // TODO:
-    InputFragment original;
+    Span original;
 };
 
 struct WasmLimits {
