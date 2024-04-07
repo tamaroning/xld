@@ -851,8 +851,6 @@ void ObjectFile::parse(Context &ctx) {
 
         this->sections.push_back(InputSection(sec_id, sec_name, content));
     }
-
-    this->dump(ctx);
 }
 
 void ObjectFile::dump(Context &ctx) {

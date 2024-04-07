@@ -5,7 +5,6 @@
 #include "common/output_file.h"
 #include "pass.h"
 #include "xld.h"
-#include "xld_private/chunk.h"
 
 namespace xld::wasm {
 
@@ -18,39 +17,49 @@ int linker_main(int argc, char **argv) {
                                  thread_count);
 
     // read files
+    std::vector<std::string> input_files;
     for (int i = 1; i < argc; i++) {
         std::string path = path_clean(argv[i]);
-        MappedFile *mf = must_open_file(ctx, path);
+        input_files.push_back(path);
+    }
 
+    if (input_files.empty())
+        Fatal(ctx) << "no input files\n";
+
+    tbb::concurrent_vector<ObjectFile *> objs;
+    tbb::parallel_for_each(input_files, [&](auto &path) {
+        MappedFile *mf = must_open_file(ctx, path);
         SyncOut(ctx) << "Open " << path << get_file_type(ctx, mf);
         switch (get_file_type(ctx, mf)) {
         case FileType::WASM_OBJ: {
             ObjectFile *obj = ObjectFile::create(ctx, path, mf);
             obj->parse(ctx);
-            ctx.files.push_back(obj);
+            objs.push_back(obj);
         } break;
         case FileType::AR: {
             for (MappedFile *f : read_archive_members(ctx, mf)) {
                 ObjectFile *obj = ObjectFile::create(ctx, f->name, f);
                 obj->parse(ctx);
-                ctx.files.push_back(obj);
+                objs.push_back(obj);
             }
         } break;
         case FileType::THIN_AR: {
             for (MappedFile *f : read_thin_archive_members(ctx, mf)) {
                 ObjectFile *obj = ObjectFile::create(ctx, f->name, f);
                 obj->parse(ctx);
-                ctx.files.push_back(obj);
+                objs.push_back(obj);
             }
         } break;
         default:
             Fatal(ctx) << "unknown file type: " << path;
             break;
         }
-    }
+    });
 
-    if (ctx.files.empty())
-        Fatal(ctx) << "no input files\n";
+    for (ObjectFile *obj : objs) {
+        obj->dump(ctx);
+        ctx.files.push_back(obj);
+    }
 
     // https://github.com/llvm/llvm-project/blob/95258419f6fe2e0922c2c0916fd176b9f7361555/lld/wasm/Driver.cpp#L1152C61-L1152C64
 
