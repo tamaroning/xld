@@ -78,40 +78,27 @@ class ObjectFile : public InputFile {
 
     void dump(Context &ctx);
 
+    // Spans of all sections
     std::vector<InputSection> sections;
 
     std::vector<WasmSignature> signatures;
-
     std::vector<WasmImport> imports;
-
     std::vector<WasmFunction> functions;
-
-    // table section
-
+    // TODO: table section
     std::vector<WasmLimits> memories;
-
     std::vector<WasmGlobal> globals;
-
     std::vector<WasmExport> exports;
-
-    // start section
-
     std::vector<WasmElemSegment> elem_segments;
-
+    // TODO: remove?
     std::vector<std::span<const u8>> codes;
 
-    // linking section
-
-    // reloc.* section
-    // stored in InputSection
-
-    // name section
+    // from the "name" section
     std::string module_name;
-
-    // datacount section
+    // from the "datacount" and "data" sections
     u32 data_count = 0;
     std::vector<WasmDataSegment> data_segments;
 
+    // from the "linking" section
     WasmLinkingData linking_data;
 
     u32 num_imported_globals = 0;

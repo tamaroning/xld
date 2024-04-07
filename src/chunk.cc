@@ -39,10 +39,43 @@ void OutputWhdr::copy_buf(Context &ctx) {
     whdr.version = WASM_VERSION;
 }
 
+u64 TypeSection::compute_section_size(Context &ctx) {
+    u64 size = 1;                                  // section type
+    size += 5;                                     // content size
+    size += get_varuint32_size(signatures.size()); // number of types
+    for (WasmSignature *sig : signatures) {
+        size++;
+        size += get_varuint32_size(sig->params.size());
+        size += sig->params.size();
+        size += get_varuint32_size(sig->returns.size());
+        size += sig->returns.size();
+    }
+    return size;
+}
+
+void TypeSection::copy_buf(Context &ctx) {
+    u8 *buf = ctx.buf + loc.offset;
+    write_byte(buf, WASM_SEC_TYPE);
+    write_varuint32(buf, loc.size - 6);
+
+    write_varuint32(buf, signatures.size());
+    for (WasmSignature *sig : signatures) {
+        write_byte(buf, 0x60);
+        write_varuint32(buf, sig->params.size());
+        for (auto param : sig->params) {
+            write_byte(buf, param);
+        }
+        write_varuint32(buf, sig->returns.size());
+        for (auto ret : sig->returns) {
+            write_byte(buf, ret);
+        }
+    }
+}
+
 u64 GlobalSection::compute_section_size(Context &ctx) {
-    u64 size = 1; // section type
-    size += 5;    // content size
-    size += 5;    // number of globals
+    u64 size = 1;                               // section type
+    size += 5;                                  // content size
+    size += get_varuint32_size(globals.size()); // number of globals
     for (WasmGlobal *global : globals) {
         size += global->span.size();
     }

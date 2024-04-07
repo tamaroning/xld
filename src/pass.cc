@@ -2,6 +2,7 @@
 #include "common/log.h"
 #include "wasm/object.h"
 #include "xld.h"
+#include "xld_private/chunk.h"
 
 namespace xld::wasm {
 
@@ -81,6 +82,7 @@ void create_synthetic_sections(Context &ctx) {
     };
 
     push(ctx.whdr = new OutputWhdr());
+    push(ctx.type = new TypeSection());
     push(ctx.global = new GlobalSection());
     push(ctx.name = new NameSection());
 
@@ -91,6 +93,12 @@ void create_synthetic_sections(Context &ctx) {
         ObjectFile *obj = static_cast<ObjectFile *>(file);
         for (WasmGlobal &g : obj->globals) {
             ctx.global->globals.emplace_back(&g);
+        }
+        for (WasmSignature &s : obj->signatures) {
+            ctx.type->signatures.emplace_back(&s);
+        }
+        for (WasmFunction f : obj->functions) {
+            ctx.type->functions.emplace_back(f);
         }
     });
 }

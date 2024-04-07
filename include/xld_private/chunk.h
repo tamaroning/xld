@@ -39,6 +39,27 @@ class OutputWhdr : public Chunk {
     void copy_buf(Context &ctx) override;
 };
 
+class TypeSection : public Chunk {
+  public:
+    TypeSection() { this->name = "type"; }
+
+    u64 compute_section_size(Context &ctx) override;
+    void copy_buf(Context &ctx) override;
+
+    std::vector<WasmSignature *> signatures;
+    std::vector<WasmFunction> functions;
+};
+
+/*
+class FunctionSection : public Chunk {
+  public:
+    FunctionSection() { this->name = "function"; }
+
+    u64 compute_section_size(Context &ctx) override;
+    void copy_buf(Context &ctx) override;
+};
+*/
+
 class GlobalSection : public Chunk {
   public:
     GlobalSection() { this->name = "global"; }
@@ -46,7 +67,7 @@ class GlobalSection : public Chunk {
     u64 compute_section_size(Context &ctx) override;
     void copy_buf(Context &ctx) override;
 
-    tbb::concurrent_vector<WasmGlobal *> globals;
+    std::vector<WasmGlobal *> globals;
 };
 
 // https://github.com/WebAssembly/design/blob/main/BinaryEncoding.md#name-section
