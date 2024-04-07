@@ -82,6 +82,7 @@ void create_synthetic_sections(Context &ctx) {
 
     push(ctx.whdr = new OutputWhdr());
     push(ctx.global = new GlobalSection());
+    push(ctx.name = new NameSection());
 
     tbb::parallel_for_each(ctx.files, [&](InputFile *file) {
         if (file->kind != InputFile::Object) {

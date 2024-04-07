@@ -11,9 +11,6 @@ namespace xld::wasm {
 class InputFile;
 class ObjectFile;
 class Symbol;
-class Chunk;
-class OutputWhdr;
-class GlobalSection;
 
 struct Context {
     Context() {}
@@ -46,6 +43,7 @@ struct Context {
     std::vector<Chunk *> chunks;
     OutputWhdr *whdr = nullptr;
     GlobalSection *global = nullptr;
+    NameSection *name = nullptr;
 
     // Command-line arguments
     struct {

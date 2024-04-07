@@ -226,9 +226,9 @@ inline int64_t decodeSLEB128AndInc(const uint8_t *&p) {
 }
 
 /// Utility function to get the size of the ULEB128-encoded value.
-extern unsigned getULEB128Size(uint64_t Value);
+unsigned get_uleb128_size(uint64_t Value);
 
 /// Utility function to get the size of the SLEB128-encoded value.
-extern unsigned getSLEB128Size(int64_t Value);
+unsigned get_sleb128_size(int64_t Value);
 
 } // namespace xld

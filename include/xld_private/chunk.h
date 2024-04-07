@@ -24,10 +24,8 @@ class Chunk {
     Chunk() : name("<unknown>"), loc(OutputLocation(0, 0)) {}
     virtual ~Chunk() = default;
 
-    // virtual OutputSection *to_osec() { return nullptr; }
-    virtual void copy_buf(Context &ctx) = 0;
-    // virtual void write_to(Context &ctx, u8 *buf) { unreachable(); }
     virtual u64 compute_section_size(Context &ctx) = 0;
+    virtual void copy_buf(Context &ctx) = 0;
 
     std::string_view name;
     OutputLocation loc;
@@ -35,22 +33,32 @@ class Chunk {
 
 class OutputWhdr : public Chunk {
   public:
-    OutputWhdr() { this->name = "WHDR"; }
-
-    void copy_buf(Context &ctx) override;
+    OutputWhdr() { this->name = "header"; }
 
     u64 compute_section_size(Context &ctx) override;
+    void copy_buf(Context &ctx) override;
 };
 
 class GlobalSection : public Chunk {
   public:
-    GlobalSection() { this->name = "GLOBAL"; }
+    GlobalSection() { this->name = "global"; }
+
+    u64 compute_section_size(Context &ctx) override;
+    void copy_buf(Context &ctx) override;
+
+    tbb::concurrent_vector<WasmGlobal *> globals;
+};
+
+// https://github.com/WebAssembly/design/blob/main/BinaryEncoding.md#name-section
+class NameSection : public Chunk {
+  public:
+    NameSection() { this->name = "name"; }
 
     void copy_buf(Context &ctx) override;
 
     u64 compute_section_size(Context &ctx) override;
 
-    tbb::concurrent_vector<WasmGlobal *> globals;
+    u64 global_subsec_size = 0;
 };
 
 } // namespace xld::wasm
