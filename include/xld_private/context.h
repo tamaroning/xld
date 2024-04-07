@@ -3,6 +3,7 @@
 #include "common/common.h"
 #include "common/mmap.h"
 #include "common/system.h"
+#include "output_elem.h"
 #include "xld_private/chunk.h"
 
 namespace xld::wasm {
@@ -45,6 +46,11 @@ struct Context {
     TypeSection *type = nullptr;
     GlobalSection *global = nullptr;
     NameSection *name = nullptr;
+
+    // output elements
+    tbb::concurrent_vector<OutputElem<WasmSignature *>> signatures;
+    tbb::concurrent_vector<OutputElem<WasmFunction>> functions;
+    tbb::concurrent_vector<OutputElem<WasmGlobal *>> globals;
 
     // Command-line arguments
     struct {

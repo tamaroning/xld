@@ -45,9 +45,6 @@ class TypeSection : public Chunk {
 
     u64 compute_section_size(Context &ctx) override;
     void copy_buf(Context &ctx) override;
-
-    std::vector<WasmSignature *> signatures;
-    std::vector<WasmFunction> functions;
 };
 
 /*
@@ -66,8 +63,6 @@ class GlobalSection : public Chunk {
 
     u64 compute_section_size(Context &ctx) override;
     void copy_buf(Context &ctx) override;
-
-    std::vector<WasmGlobal *> globals;
 };
 
 // https://github.com/WebAssembly/design/blob/main/BinaryEncoding.md#name-section

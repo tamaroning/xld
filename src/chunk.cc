@@ -40,15 +40,15 @@ void OutputWhdr::copy_buf(Context &ctx) {
 }
 
 u64 TypeSection::compute_section_size(Context &ctx) {
-    u64 size = 1;                                  // section type
-    size += 5;                                     // content size
-    size += get_varuint32_size(signatures.size()); // number of types
-    for (WasmSignature *sig : signatures) {
+    u64 size = 1;                                      // section type
+    size += 5;                                         // content size
+    size += get_varuint32_size(ctx.signatures.size()); // number of types
+    for (auto &sig : ctx.signatures) {
         size++;
-        size += get_varuint32_size(sig->params.size());
-        size += sig->params.size();
-        size += get_varuint32_size(sig->returns.size());
-        size += sig->returns.size();
+        size += get_varuint32_size(sig.wdata->params.size());
+        size += sig.wdata->params.size();
+        size += get_varuint32_size(sig.wdata->returns.size());
+        size += sig.wdata->returns.size();
     }
     return size;
 }
@@ -58,26 +58,26 @@ void TypeSection::copy_buf(Context &ctx) {
     write_byte(buf, WASM_SEC_TYPE);
     write_varuint32(buf, loc.size - 6);
 
-    write_varuint32(buf, signatures.size());
-    for (WasmSignature *sig : signatures) {
-        write_byte(buf, 0x60);
-        write_varuint32(buf, sig->params.size());
-        for (auto param : sig->params) {
+    write_varuint32(buf, ctx.signatures.size());
+    for (auto &sig : ctx.signatures) {
+        write_byte(buf, WASM_TYPE_FUNC);
+        write_varuint32(buf, sig.wdata->params.size());
+        for (auto param : sig.wdata->params) {
             write_byte(buf, param);
         }
-        write_varuint32(buf, sig->returns.size());
-        for (auto ret : sig->returns) {
+        write_varuint32(buf, sig.wdata->returns.size());
+        for (auto ret : sig.wdata->returns) {
             write_byte(buf, ret);
         }
     }
 }
 
 u64 GlobalSection::compute_section_size(Context &ctx) {
-    u64 size = 1;                               // section type
-    size += 5;                                  // content size
-    size += get_varuint32_size(globals.size()); // number of globals
-    for (WasmGlobal *global : globals) {
-        size += global->span.size();
+    u64 size = 1;                                   // section type
+    size += 5;                                      // content size
+    size += get_varuint32_size(ctx.globals.size()); // number of globals
+    for (auto &global : ctx.globals) {
+        size += global.wdata->span.size();
     }
     return size;
 }
@@ -89,10 +89,10 @@ void GlobalSection::copy_buf(Context &ctx) {
     write_varuint32(buf, loc.size - 6);
 
     // globals
-    write_varuint32(buf, globals.size());
-    for (WasmGlobal *global : globals) {
-        memcpy(buf, global->span.data(), global->span.size());
-        buf += global->span.size();
+    write_varuint32(buf, ctx.globals.size());
+    for (auto &global : ctx.globals) {
+        memcpy(buf, global.wdata->span.data(), global.wdata->span.size());
+        buf += global.wdata->span.size();
     }
 }
 
@@ -104,10 +104,10 @@ u64 NameSection::compute_section_size(Context &ctx) {
     size += 1; // global subsec kind
     // global subsec size
     global_subsec_size = 0;
-    global_subsec_size += get_varuint32_size(ctx.global->globals.size());
-    for (WasmGlobal *g : ctx.global->globals) {
-        global_subsec_size += get_varuint32_size(g->symbol_name.size());
-        global_subsec_size += get_name_size(g->symbol_name);
+    global_subsec_size += get_varuint32_size(ctx.globals.size());
+    for (auto &g : ctx.globals) {
+        global_subsec_size += get_varuint32_size(g.wdata->symbol_name.size());
+        global_subsec_size += get_name_size(g.wdata->symbol_name);
     }
     size += get_varuint32_size(global_subsec_size);
     size += global_subsec_size;
@@ -129,12 +129,12 @@ void NameSection::copy_buf(Context &ctx) {
     write_varuint32(buf, global_subsec_size);
 
     // global subsec data
-    u32 name_count = ctx.global->globals.size();
+    u32 name_count = ctx.globals.size();
     write_varuint32(buf, name_count);
     int index = 0;
-    for (WasmGlobal *g : ctx.global->globals) {
+    for (auto &g : ctx.globals) {
         write_varuint32(buf, index);
-        write_name(buf, g->symbol_name);
+        write_name(buf, g.wdata->symbol_name);
         index++;
     }
 }

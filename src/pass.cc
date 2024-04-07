@@ -92,13 +92,14 @@ void create_synthetic_sections(Context &ctx) {
         }
         ObjectFile *obj = static_cast<ObjectFile *>(file);
         for (WasmGlobal &g : obj->globals) {
-            ctx.global->globals.emplace_back(&g);
+            ctx.globals.emplace_back(&g);
         }
         for (WasmSignature &s : obj->signatures) {
-            ctx.type->signatures.emplace_back(&s);
+            ctx.signatures.emplace_back(&s);
         }
         for (WasmFunction f : obj->functions) {
-            ctx.type->functions.emplace_back(f);
+            // TODO: function
+            ctx.functions.emplace_back(f);
         }
     });
 }
