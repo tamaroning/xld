@@ -7,14 +7,10 @@
 namespace xld::wasm {
 
 static void write_varuint32(u8 *&buf, u32 value) {
-    encode_uleb128(value, buf, 5);
-    buf += 5;
+    buf += encode_uleb128(value, buf);
 }
 
-static u32 get_varuint32_size(u32 value) {
-    // return get_uleb128_size(value);
-    return 5;
-}
+static u32 get_varuint32_size(u32 value) { return get_uleb128_size(value); }
 
 static void write_byte(u8 *&buf, u8 byte) { *(buf++) = byte; }
 
@@ -24,9 +20,13 @@ static void write_name(u8 *&buf, std::string_view name) {
     buf += name.size();
 }
 
+static void finalize_section_size_common(u64 &size) {
+    size++;
+    size += get_varuint32_size(size);
+}
+
 static u32 get_name_size(std::string_view name) {
-    // return get_uleb128_size(name.size()) + name.size();
-    return 5 + name.size();
+    return get_uleb128_size(name.size()) + name.size();
 }
 
 u64 OutputWhdr::compute_section_size(Context &ctx) {
@@ -40,8 +40,7 @@ void OutputWhdr::copy_buf(Context &ctx) {
 }
 
 u64 TypeSection::compute_section_size(Context &ctx) {
-    u64 size = 1;                                      // section type
-    size += 5;                                         // content size
+    u64 size = 0;
     size += get_varuint32_size(ctx.signatures.size()); // number of types
     for (auto &sig : ctx.signatures) {
         size++;
@@ -50,13 +49,15 @@ u64 TypeSection::compute_section_size(Context &ctx) {
         size += get_varuint32_size(sig.wdata.returns.size());
         size += sig.wdata.returns.size();
     }
+    loc.content_size = size;
+    finalize_section_size_common(size);
     return size;
 }
 
 void TypeSection::copy_buf(Context &ctx) {
     u8 *buf = ctx.buf + loc.offset;
     write_byte(buf, WASM_SEC_TYPE);
-    write_varuint32(buf, loc.size - 6);
+    write_varuint32(buf, loc.content_size);
 
     write_varuint32(buf, ctx.signatures.size());
     for (auto &sig : ctx.signatures) {
@@ -73,19 +74,20 @@ void TypeSection::copy_buf(Context &ctx) {
 }
 
 u64 FunctionSection::compute_section_size(Context &ctx) {
-    u64 size = 1;                                     // section type
-    size += 5;                                        // content size
+    u64 size = 0;
     size += get_varuint32_size(ctx.functions.size()); // number of functions
     for (auto &func : ctx.functions) {
         size += get_varuint32_size(func.wdata.sig_index);
     }
+    loc.content_size = size;
+    finalize_section_size_common(size);
     return size;
 }
 
 void FunctionSection::copy_buf(Context &ctx) {
     u8 *buf = ctx.buf + loc.offset;
     write_byte(buf, WASM_SEC_FUNCTION);
-    write_varuint32(buf, loc.size - 6);
+    write_varuint32(buf, loc.content_size);
 
     write_varuint32(buf, ctx.functions.size());
     for (auto &func : ctx.functions) {
@@ -95,12 +97,13 @@ void FunctionSection::copy_buf(Context &ctx) {
 }
 
 u64 GlobalSection::compute_section_size(Context &ctx) {
-    u64 size = 1;                                   // section type
-    size += 5;                                      // content size
+    u64 size = 0;
     size += get_varuint32_size(ctx.globals.size()); // number of globals
     for (auto &global : ctx.globals) {
         size += global.wdata.span.size();
     }
+    loc.content_size = size;
+    finalize_section_size_common(size);
     return size;
 }
 
@@ -108,7 +111,7 @@ void GlobalSection::copy_buf(Context &ctx) {
     u8 *buf = ctx.buf + loc.offset;
     write_byte(buf, WASM_SEC_GLOBAL);
     // content size
-    write_varuint32(buf, loc.size - 6);
+    write_varuint32(buf, loc.content_size);
 
     // globals
     write_varuint32(buf, ctx.globals.size());
@@ -121,8 +124,7 @@ void GlobalSection::copy_buf(Context &ctx) {
 }
 
 u64 NameSection::compute_section_size(Context &ctx) {
-    u64 size = 1;                  // section type
-    size += 5;                     // content size
+    u64 size = 0;
     size += get_name_size("name"); // number of names
 
     // function subsec size
@@ -147,6 +149,8 @@ u64 NameSection::compute_section_size(Context &ctx) {
     size += get_varuint32_size(global_subsec_size);
     size += global_subsec_size;
 
+    loc.content_size = size;
+    finalize_section_size_common(size);
     return size;
 }
 
@@ -154,7 +158,7 @@ void NameSection::copy_buf(Context &ctx) {
     u8 *buf = ctx.buf + loc.offset;
     write_byte(buf, WASM_SEC_CUSTOM);
     // content size
-    write_varuint32(buf, loc.size - 6);
+    write_varuint32(buf, loc.content_size);
 
     write_name(buf, "name");
 

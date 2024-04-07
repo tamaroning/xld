@@ -11,17 +11,18 @@ class Context;
 
 class OutputLocation {
   public:
-    OutputLocation(u32 offset, u32 size) : offset(offset), size(size) {}
+    OutputLocation() {}
 
     // The offset of the data in the output file.
-    u64 offset;
+    u64 offset = 0;
     // The size of the data in the output file.
-    u64 size;
+    u64 size = 0;
+    u64 content_size = 0;
 };
 
 class Chunk {
   public:
-    Chunk() : name("<unknown>"), loc(OutputLocation(0, 0)) {}
+    Chunk() : name("<unknown>"), loc(OutputLocation()) {}
     virtual ~Chunk() = default;
 
     virtual u64 compute_section_size(Context &ctx) = 0;

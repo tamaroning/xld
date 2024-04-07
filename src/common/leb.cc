@@ -13,7 +13,7 @@
 
 #include "common/integers.h"
 
-namespace llvm {
+namespace xld {
 
 /// Utility function to get the size of the ULEB128-encoded value.
 unsigned get_uleb128_size(uint64_t Value) {
@@ -40,4 +40,4 @@ unsigned get_sleb128_size(int64_t Value) {
     return Size;
 }
 
-} // namespace llvm
+} // namespace xld
