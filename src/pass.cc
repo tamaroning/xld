@@ -94,16 +94,21 @@ void create_synthetic_sections(Context &ctx) {
     });
 }
 
-void compute_section_sizes(Context &ctx) {
+u64 compute_section_sizes(Context &ctx) {
     tbb::parallel_for_each(ctx.chunks, [&](Chunk *chunk) {
         chunk->loc.size = chunk->compute_section_size(ctx);
     });
-    
+
     u64 offset = 0;
     for (Chunk *chunk : ctx.chunks) {
         chunk->loc.offset = offset;
         offset += chunk->loc.size;
+        Debug(ctx) << "Section: " << chunk->name
+                   << " offset: " << chunk->loc.offset
+                   << " size: " << chunk->loc.size;
     }
+    Debug(ctx) << "Total size: " << offset;
+    return offset;
 }
 
 void copy_chunks(Context &ctx) {

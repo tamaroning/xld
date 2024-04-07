@@ -10,14 +10,13 @@ u64 OutputWhdr::compute_section_size(Context &ctx) {
 }
 
 void OutputWhdr::copy_buf(Context &ctx) {
-    // https://github.com/tamaroning/mold/blob/3df7c8e89c507865abe0fad4ff5355f4d328f78d/elf/output-chunks.cc#L47
     WasmObjectHeader &whdr = *((WasmObjectHeader *)ctx.buf + loc.offset);
     memcpy(whdr.magic, WASM_MAGIC, sizeof(WASM_MAGIC));
     whdr.version = WASM_VERSION;
 }
 
 u64 GlobalSection::compute_section_size(Context &ctx) {
-    u64 size = 5; // section header
+    u64 size = 1; // section type
     size += 5;    // content size
     size += 5;    // number of globals
     for (WasmGlobal *global : globals) {

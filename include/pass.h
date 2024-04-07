@@ -9,7 +9,7 @@ void create_internal_file(Context &);
 
 void create_synthetic_sections(Context &);
 
-void compute_section_sizes(Context &);
+u64 compute_section_sizes(Context &);
 
 void copy_chunks(Context &);
 

@@ -1,10 +1,10 @@
 #pragma once
 
 #include "common/integers.h"
+#include "common/system.h"
 #include <cstring>
 #include <memory>
 #include <string>
-#include <string_view>
 
 namespace xld {
 
@@ -24,6 +24,13 @@ std::string_view save_string(Context &ctx, const std::string &str) {
 inline void cleanup() {
     if (output_tmpfile)
         unlink(output_tmpfile);
+}
+
+inline i64 get_default_thread_count() {
+    // mold doesn't scale well above 32 threads.
+    int n = tbb::global_control::active_value(
+        tbb::global_control::max_allowed_parallelism);
+    return std::min(n, 32);
 }
 
 } // namespace xld

@@ -12,6 +12,11 @@ namespace xld::wasm {
 int linker_main(int argc, char **argv) {
     Context ctx;
 
+    i64 thread_count = get_default_thread_count();
+    Debug(ctx) << "thread_count: " << thread_count;
+    tbb::global_control tbb_cont(tbb::global_control::max_allowed_parallelism,
+                                 thread_count);
+
     // read files
     for (int i = 1; i < argc; i++) {
         std::string path = path_clean(argv[i]);
@@ -103,11 +108,9 @@ int linker_main(int argc, char **argv) {
 
     // Compute sizes of output sections while assigning offsets
     // within an output section to input sections.
-    compute_section_sizes(ctx);
+    u64 size = compute_section_sizes(ctx);
 
     // https://github.com/tamaroning/mold/blob/3df7c8e89c507865abe0fad4ff5355f4d328f78d/elf/main.cc#L637
-    size_t size = 1 * 1024;
-    size = 100;
     auto output_file = OutputFile<Context>::open(ctx, "a.wasm", size, 0777);
     ctx.buf = output_file->buf;
 
