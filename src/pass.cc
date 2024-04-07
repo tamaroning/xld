@@ -85,6 +85,7 @@ void create_synthetic_sections(Context &ctx) {
     push(ctx.type = new TypeSection());
     push(ctx.function = new FunctionSection());
     push(ctx.global = new GlobalSection());
+    push(ctx.code = new CodeSection());
     push(ctx.name = new NameSection());
 
     std::mutex m;
@@ -94,20 +95,29 @@ void create_synthetic_sections(Context &ctx) {
         }
         ObjectFile *obj = static_cast<ObjectFile *>(file);
         for (WasmGlobal g : obj->globals) {
-            ctx.globals.emplace_back(g);
+            ctx.globals.emplace_back(OutputElem<WasmGlobal>(g, obj));
         }
+        /*
         for (WasmSignature s : obj->signatures) {
-            ctx.signatures.emplace_back(s);
+            ctx.signatures.emplace_back(OutputElem<WasmSignature>(s, obj));
         }
-        for (WasmFunction f : obj->functions) {
-            Debug(ctx) << "Function: " << f.symbol_name;
-            u32 obj_sig_index = f.sig_index;
-            {
-                std::lock_guard<std::mutex> lock(m);
+        */
+        {
+            std::lock_guard<std::mutex> lock(m);
+            for (WasmFunction f : obj->functions) {
+                Debug(ctx) << "Function: " << f.symbol_name;
+                u32 obj_sig_index = f.sig_index;
+
                 f.sig_index = ctx.signatures.size();
-                ctx.signatures.emplace_back(obj->signatures[obj_sig_index]);
+                ctx.signatures.emplace_back(OutputElem<WasmSignature>(
+                    obj->signatures[obj_sig_index], obj));
+                ctx.functions.emplace_back(OutputElem<WasmFunction>(f, obj));
             }
-            ctx.functions.emplace_back(f);
+            // push the code section to keep the same order as the function
+            // section
+            // TODO: info for relocation
+            if (obj->code.has_value())
+                ctx.codes.emplace_back(obj->code.value());
         }
     });
 }

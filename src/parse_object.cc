@@ -2,6 +2,7 @@
 #include "common/leb128.h"
 #include "common/log.h"
 #include "common/system.h"
+#include "wasm/object.h"
 #include "xld.h"
 
 namespace xld::wasm {
@@ -340,8 +341,10 @@ void ObjectFile::parse_linking_sec(Context &ctx, const u8 *&p, const u32 size) {
 
 void ObjectFile::parse_reloc_sec(Context &ctx, const u8 *&p, const u32 size) {
     u32 sec_idx = parse_varuint32(p);
-    if (sec_idx >= this->sections.size())
-        Fatal(ctx) << "section index in WasmRelocation is corrupsed";
+    Debug(ctx) << "reloc section for section index: " << sec_idx;
+    Debug(ctx) << "code section index: " << code.value().index;
+    if (!code.has_value() || code.value().index != sec_idx)
+        Fatal(ctx) << "relocations does not refer to the code section";
     u32 count = parse_varuint32(p);
     for (int i = 0; i < count; i++) {
         u8 type = *p;
@@ -362,7 +365,7 @@ void ObjectFile::parse_reloc_sec(Context &ctx, const u8 *&p, const u32 size) {
         case R_WASM_MEMORY_ADDR_TLS_SLEB:
         case R_WASM_MEMORY_ADDR_LOCREL_I32:
         case R_WASM_MEMORY_ADDR_TLS_SLEB64:
-        // R_WASM_FUNCTION_OFFSET
+        // R_WASM_FUNCTION_OFFSET_*
         case R_WASM_FUNCTION_OFFSET_I32:
         case R_WASM_FUNCTION_OFFSET_I64:
         // R_WASM_SECTION_OFFSET_I64 does not exist
@@ -370,7 +373,7 @@ void ObjectFile::parse_reloc_sec(Context &ctx, const u8 *&p, const u32 size) {
             addend = parse_varint32(p);
             break;
         }
-        this->sections[sec_idx].relocs.push_back(WasmRelocation{
+        this->code.value().relocs.push_back(WasmRelocation{
             .type = type,
             .index = index,
             .offset = offset,
@@ -544,16 +547,17 @@ void ObjectFile::parse(Context &ctx) {
     u8 *data = this->mf->data;
     const u8 *p = data + sizeof(WasmObjectHeader);
 
+    u32 sec_index = 0;
     while (p - data < this->mf->size) {
         u8 sec_id = *p;
         p++;
         u32 content_size = parse_varuint32(p);
 
         std::string sec_name{sec_id_as_str(sec_id)};
-        Debug(ctx) << "parsing " << sec_name;
+        Debug(ctx) << "parsing " << sec_name << " (" << sec_index
+                   << "th section)";
 
         const u8 *content_beg = p;
-        u32 content_ofs = p - data;
         std::span<const u8> content{content_beg, content_beg + content_size};
 
         switch (sec_id) {
@@ -849,121 +853,98 @@ void ObjectFile::parse(Context &ctx) {
                 << content_size;
         }
 
-        this->sections.push_back(InputSection(sec_id, sec_name, content));
+        if (sec_id == WASM_SEC_CODE) {
+            // TODO: allocate in heap?
+            this->code =
+                InputSection(sec_id, sec_index, this, sec_name, content);
+        }
+        sec_index++;
     }
 }
 
 void ObjectFile::dump(Context &ctx) {
     Debug(ctx) << "=== " << this->mf->name << " ===";
-    for (auto &sec : this->sections) {
-        Debug(ctx) << std::hex << "Section: " << sec_id_as_str(sec.sec_id)
-                   << "(name=" << sec.name << ", size=0x" << sec.span.size()
-                   << ")";
-        switch (sec.sec_id) {
-        case WASM_SEC_TYPE: {
-            for (int i = 0; i < this->signatures.size(); i++) {
-                Debug(ctx) << "  - type[" << i << "]";
+    Debug(ctx) << "Type section";
+    for (int i = 0; i < this->signatures.size(); i++) {
+        Debug(ctx) << "  - type[" << i << "]";
+    }
+    Debug(ctx) << "Import section";
+    {
+        u32 func_index = 0;
+        u32 table_index = 0;
+        u32 memory_index = 0;
+        u32 global_index = 0;
+        for (WasmImport &import : this->imports) {
+            switch (import.kind) {
+            case WASM_EXTERNAL_FUNCTION:
+                Debug(ctx) << "  - func[" << func_index
+                           << "]: " << import.module << "." << import.field;
+                func_index++;
+                break;
+            case WASM_EXTERNAL_TABLE:
+                Debug(ctx) << "  - table[" << table_index
+                           << "]: " << import.module << "." << import.field;
+                table_index++;
+                break;
+            case WASM_EXTERNAL_MEMORY:
+                Debug(ctx) << "  - memory[" << memory_index
+                           << "]: " << import.module << "." << import.field;
+                memory_index++;
+                break;
+            case WASM_EXTERNAL_GLOBAL:
+                Debug(ctx) << "  - global[" << global_index
+                           << "]: " << import.module << "." << import.field;
+                global_index++;
+                break;
             }
-        } break;
-        case WASM_SEC_IMPORT: {
-            u32 func_index = 0;
-            u32 table_index = 0;
-            u32 memory_index = 0;
-            u32 global_index = 0;
-            for (WasmImport &import : this->imports) {
-                switch (import.kind) {
-                case WASM_EXTERNAL_FUNCTION:
-                    Debug(ctx) << "  - func[" << func_index
-                               << "]: " << import.module << "." << import.field;
-                    func_index++;
-                    break;
-                case WASM_EXTERNAL_TABLE:
-                    Debug(ctx) << "  - table[" << table_index
-                               << "]: " << import.module << "." << import.field;
-                    table_index++;
-                    break;
-                case WASM_EXTERNAL_MEMORY:
-                    Debug(ctx) << "  - memory[" << memory_index
-                               << "]: " << import.module << "." << import.field;
-                    memory_index++;
-                    break;
-                case WASM_EXTERNAL_GLOBAL:
-                    Debug(ctx) << "  - global[" << global_index
-                               << "]: " << import.module << "." << import.field;
-                    global_index++;
-                    break;
-                }
-            }
-        } break;
-        case WASM_SEC_FUNCTION: {
-            for (int i = 0; i < this->functions.size(); i++) {
-                const WasmFunction &func = this->functions[i];
-                Debug(ctx) << "  - func[" << i + num_imported_functions
-                           << "]: " << func.symbol_name << " (type["
-                           << func.sig_index
-                           << "], export_name=" << func.export_name << ")";
-            }
-        } break;
-        case WASM_SEC_MEMORY: {
-            for (int i = 0; i < this->memories.size(); i++) {
-                const WasmLimits &mem = this->memories[i];
-                Debug(ctx) << "  - memory[" << i + num_imported_memories
-                           << "]: min=" << mem.minimum
-                           << ", max=" << mem.maximum;
-            }
-        } break;
-        case WASM_SEC_GLOBAL: {
-            for (int i = 0; i < this->globals.size(); i++) {
-                const WasmGlobal &global = this->globals[i];
-                Debug(ctx) << "  - global[" << i + num_imported_globals
-                           << "]: " << global.symbol_name;
-            }
-        } break;
-        case WASM_SEC_EXPORT: {
-            for (int i = 0; i < this->exports.size(); i++) {
-                Debug(ctx) << "  - export[" << i
-                           << "]: " << this->exports[i].name;
-            }
-        } break;
-        case WASM_SEC_CODE: {
-            for (int i = 0; i < this->codes.size(); i++) {
-                Debug(ctx) << "  - code[" << i << "]";
-            }
-        } break;
-        case WASM_SEC_DATA: {
-            for (int i = 0; i < this->data_segments.size(); i++) {
-                WasmDataSegment &data_seg = this->data_segments[i];
-                Debug(ctx) << "  - data[" << i << "]";
-            }
-        } break;
-        case WASM_SEC_CUSTOM: {
-            if (sec.name == "linking") {
-                for (int i = 0; i < this->symbols.size(); i++) {
-                    WasmSymbol sym = this->symbols[i];
-                    std::string symname =
-                        sym.info.import_name.has_value()
-                            ? (sym.info.import_module.value() + "." +
-                               sym.info.import_name.value())
-                            : sym.info.name;
-                    Debug(ctx) << "  - symbol[" << i << "]: " << symname;
-                }
-                for (int i = 0; i < this->data_segments.size(); i++) {
-                    WasmDataSegment &data_seg = this->data_segments[i];
-                    Debug(ctx) << "  - data[" << i << "]: " << data_seg.name;
-                }
-            }
-        } break;
         }
-        if (sec.relocs.size())
-            Debug(ctx) << "  - num relocs: " << sec.relocs.size();
     }
-
-    /*
-    for (auto &sym : this->symbols) {
-        Debug(ctx) << "  - symbol: " << sym.info.name;
+    Debug(ctx) << "Function section";
+    for (int i = 0; i < this->functions.size(); i++) {
+        const WasmFunction &func = this->functions[i];
+        Debug(ctx) << "  - func[" << i + num_imported_functions
+                   << "]: " << func.symbol_name << " (type[" << func.sig_index
+                   << "], export_name=" << func.export_name << ")";
     }
-    */
-
+    Debug(ctx) << "Memory section";
+    for (int i = 0; i < this->memories.size(); i++) {
+        const WasmLimits &mem = this->memories[i];
+        Debug(ctx) << "  - memory[" << i + num_imported_memories
+                   << "]: min=" << mem.minimum << ", max=" << mem.maximum;
+    }
+    Debug(ctx) << "Global section";
+    for (int i = 0; i < this->globals.size(); i++) {
+        const WasmGlobal &global = this->globals[i];
+        Debug(ctx) << "  - global[" << i + num_imported_globals
+                   << "]: " << global.symbol_name;
+    }
+    Debug(ctx) << "Export section";
+    for (int i = 0; i < this->exports.size(); i++) {
+        Debug(ctx) << "  - export[" << i << "]: " << this->exports[i].name;
+    }
+    Debug(ctx) << "Code section";
+    for (int i = 0; i < this->codes.size(); i++) {
+        Debug(ctx) << "  - code[" << i << "]";
+    }
+    Debug(ctx) << "Data section";
+    for (int i = 0; i < this->data_segments.size(); i++) {
+        WasmDataSegment &data_seg = this->data_segments[i];
+        Debug(ctx) << "  - data[" << i << "]";
+    }
+    Debug(ctx) << "Linking-Symbol section";
+    for (int i = 0; i < this->symbols.size(); i++) {
+        WasmSymbol sym = this->symbols[i];
+        std::string symname = sym.info.import_name.has_value()
+                                  ? (sym.info.import_module.value() + "." +
+                                     sym.info.import_name.value())
+                                  : sym.info.name;
+        Debug(ctx) << "  - symbol[" << i << "]: " << symname;
+    }
+    Debug(ctx) << "Linking-Data section";
+    for (int i = 0; i < this->data_segments.size(); i++) {
+        WasmDataSegment &data_seg = this->data_segments[i];
+        Debug(ctx) << "  - data[" << i << "]: " << data_seg.name;
+    }
     Debug(ctx) << "=== Dump Ends ===";
 }
 

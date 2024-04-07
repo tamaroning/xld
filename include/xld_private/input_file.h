@@ -8,15 +8,19 @@ namespace xld::wasm {
 
 // forward-decl
 class Context;
+class ObjectFile;
 
 class InputSection {
   public:
-    InputSection(u8 sec_id, std::string name, std::span<const u8> span)
-        : sec_id(sec_id), name(name), span(span) {}
+    InputSection(u8 sec_id, u32 index, ObjectFile *obj, std::string name,
+                 std::span<const u8> span)
+        : sec_id(sec_id), index(index), obj(obj), name(name), span(span) {}
 
-    // void write_to(Context &ctx, u8 *buf);
+    void write_to(Context &ctx, u8 *buf);
 
-    u8 sec_id = 0;
+    u8 sec_id;
+    u32 index;
+    ObjectFile *obj;
     std::string name;
     std::span<const u8> span;
     std::vector<WasmRelocation> relocs;
@@ -79,7 +83,7 @@ class ObjectFile : public InputFile {
     void dump(Context &ctx);
 
     // Spans of all sections
-    std::vector<InputSection> sections;
+    std::optional<InputSection> code = std::nullopt;
 
     std::vector<WasmSignature> signatures;
     std::vector<WasmImport> imports;
@@ -89,6 +93,7 @@ class ObjectFile : public InputFile {
     std::vector<WasmGlobal> globals;
     std::vector<WasmExport> exports;
     std::vector<WasmElemSegment> elem_segments;
+
     // TODO: remove?
     std::vector<std::span<const u8>> codes;
 

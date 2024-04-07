@@ -64,6 +64,14 @@ class GlobalSection : public Chunk {
     void copy_buf(Context &ctx) override;
 };
 
+class CodeSection : public Chunk {
+  public:
+    CodeSection() { this->name = "code"; }
+
+    u64 compute_section_size(Context &ctx) override;
+    void copy_buf(Context &ctx) override;
+};
+
 // https://github.com/WebAssembly/design/blob/main/BinaryEncoding.md#name-section
 class NameSection : public Chunk {
   public:

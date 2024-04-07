@@ -1,4 +1,3 @@
-#include "xld_private/chunk.h"
 #include "common/leb128.h"
 #include "common/log.h"
 #include "wasm/object.h"
@@ -118,6 +117,38 @@ void GlobalSection::copy_buf(Context &ctx) {
     for (auto &global : ctx.globals) {
         memcpy(buf, global.wdata.span.data(), global.wdata.span.size());
         buf += global.wdata.span.size();
+    }
+
+    ASSERT(buf == ctx.buf + loc.offset + loc.size);
+}
+
+u64 CodeSection::compute_section_size(Context &ctx) {
+    u64 size = 0;
+    size += get_varuint32_size(ctx.functions.size()); // number of code
+
+    for (auto &code : ctx.codes) {
+        for (auto &c : code.obj->codes) {
+            size += c.size();
+        }
+    }
+    loc.content_size = size;
+    finalize_section_size_common(size);
+    return size;
+}
+
+void CodeSection::copy_buf(Context &ctx) {
+    u8 *buf = ctx.buf + loc.offset;
+    write_byte(buf, WASM_SEC_CODE);
+    // content size
+    write_varuint32(buf, loc.content_size);
+
+    // functions
+    write_varuint32(buf, ctx.functions.size());
+    for (auto &code : ctx.codes) {
+        for (auto &c : code.obj->codes) {
+            memcpy(buf, c.data(), c.size());
+            buf += c.size();
+        }
     }
 
     ASSERT(buf == ctx.buf + loc.offset + loc.size);

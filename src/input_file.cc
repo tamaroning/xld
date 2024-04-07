@@ -4,6 +4,10 @@
 
 namespace xld::wasm {
 
+void InputSection::write_to(Context &ctx, u8 *buf) {
+    memcpy(buf, span.data(), span.size());
+}
+
 InputFile::InputFile(Context &ctx, const std::string &filename, MappedFile *mf)
     : mf(mf), filename(filename) {
     if (!mf)

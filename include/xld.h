@@ -6,6 +6,7 @@
 #include "xld_private/context.h"
 #include "xld_private/input_file.h"
 #include "xld_private/symbol.h"
+#include "xld_private/output_elem.h"
 
 namespace xld::wasm {
 

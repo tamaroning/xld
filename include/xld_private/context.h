@@ -5,6 +5,7 @@
 #include "common/system.h"
 #include "output_elem.h"
 #include "xld_private/chunk.h"
+#include "xld_private/input_file.h"
 
 namespace xld::wasm {
 
@@ -46,12 +47,14 @@ struct Context {
     TypeSection *type = nullptr;
     FunctionSection *function = nullptr;
     GlobalSection *global = nullptr;
+    CodeSection *code = nullptr;
     NameSection *name = nullptr;
 
     // output elements
     tbb::concurrent_vector<OutputElem<WasmSignature>> signatures;
     tbb::concurrent_vector<OutputElem<WasmFunction>> functions;
     tbb::concurrent_vector<OutputElem<WasmGlobal>> globals;
+    tbb::concurrent_vector<InputSection> codes;
 
     // Command-line arguments
     struct {
