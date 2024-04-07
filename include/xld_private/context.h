@@ -48,9 +48,9 @@ struct Context {
     NameSection *name = nullptr;
 
     // output elements
-    tbb::concurrent_vector<OutputElem<WasmSignature *>> signatures;
+    tbb::concurrent_vector<OutputElem<WasmSignature>> signatures;
     tbb::concurrent_vector<OutputElem<WasmFunction>> functions;
-    tbb::concurrent_vector<OutputElem<WasmGlobal *>> globals;
+    tbb::concurrent_vector<OutputElem<WasmGlobal>> globals;
 
     // Command-line arguments
     struct {

@@ -86,19 +86,26 @@ void create_synthetic_sections(Context &ctx) {
     push(ctx.global = new GlobalSection());
     push(ctx.name = new NameSection());
 
+    std::mutex m;
     tbb::parallel_for_each(ctx.files, [&](InputFile *file) {
         if (file->kind != InputFile::Object) {
             return;
         }
         ObjectFile *obj = static_cast<ObjectFile *>(file);
-        for (WasmGlobal &g : obj->globals) {
-            ctx.globals.emplace_back(&g);
+        for (WasmGlobal g : obj->globals) {
+            ctx.globals.emplace_back(g);
         }
-        for (WasmSignature &s : obj->signatures) {
-            ctx.signatures.emplace_back(&s);
+        for (WasmSignature s : obj->signatures) {
+            ctx.signatures.emplace_back(s);
         }
         for (WasmFunction f : obj->functions) {
-            // TODO: function
+            Debug(ctx) << "Function: " << f.symbol_name;
+            u32 obj_sig_index = f.sig_index;
+            {
+                std::lock_guard<std::mutex> lock(m);
+                f.sig_index = ctx.signatures.size();
+                ctx.signatures.emplace_back(obj->signatures[obj_sig_index]);
+            }
             ctx.functions.emplace_back(f);
         }
     });
