@@ -44,6 +44,7 @@ struct Context {
     std::vector<Chunk *> chunks;
     OutputWhdr *whdr = nullptr;
     TypeSection *type = nullptr;
+    FunctionSection *function = nullptr;
     GlobalSection *global = nullptr;
     NameSection *name = nullptr;
 

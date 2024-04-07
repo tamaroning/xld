@@ -47,7 +47,6 @@ class TypeSection : public Chunk {
     void copy_buf(Context &ctx) override;
 };
 
-/*
 class FunctionSection : public Chunk {
   public:
     FunctionSection() { this->name = "function"; }
@@ -55,7 +54,6 @@ class FunctionSection : public Chunk {
     u64 compute_section_size(Context &ctx) override;
     void copy_buf(Context &ctx) override;
 };
-*/
 
 class GlobalSection : public Chunk {
   public:
@@ -75,6 +73,7 @@ class NameSection : public Chunk {
     u64 compute_section_size(Context &ctx) override;
 
     u64 global_subsec_size = 0;
+    u64 function_subsec_size = 0;
 };
 
 } // namespace xld::wasm

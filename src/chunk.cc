@@ -44,9 +44,6 @@ u64 TypeSection::compute_section_size(Context &ctx) {
     size += 5;                                         // content size
     size += get_varuint32_size(ctx.signatures.size()); // number of types
     for (auto &sig : ctx.signatures) {
-        Debug(ctx) << "type size: " << size;
-        Debug(ctx) << "params size: " << sig.wdata.params.size();
-        Debug(ctx) << "returns size: " << sig.wdata.returns.size();
         size++;
         size += get_varuint32_size(sig.wdata.params.size());
         size += sig.wdata.params.size();
@@ -75,6 +72,28 @@ void TypeSection::copy_buf(Context &ctx) {
     }
 }
 
+u64 FunctionSection::compute_section_size(Context &ctx) {
+    u64 size = 1;                                     // section type
+    size += 5;                                        // content size
+    size += get_varuint32_size(ctx.functions.size()); // number of functions
+    for (auto &func : ctx.functions) {
+        size += get_varuint32_size(func.wdata.sig_index);
+    }
+    return size;
+}
+
+void FunctionSection::copy_buf(Context &ctx) {
+    u8 *buf = ctx.buf + loc.offset;
+    write_byte(buf, WASM_SEC_FUNCTION);
+    write_varuint32(buf, loc.size - 6);
+
+    write_varuint32(buf, ctx.functions.size());
+    for (auto &func : ctx.functions) {
+        write_varuint32(buf, func.wdata.sig_index);
+    }
+    ASSERT(buf == ctx.buf + loc.offset + loc.size);
+}
+
 u64 GlobalSection::compute_section_size(Context &ctx) {
     u64 size = 1;                                   // section type
     size += 5;                                      // content size
@@ -97,6 +116,8 @@ void GlobalSection::copy_buf(Context &ctx) {
         memcpy(buf, global.wdata.span.data(), global.wdata.span.size());
         buf += global.wdata.span.size();
     }
+
+    ASSERT(buf == ctx.buf + loc.offset + loc.size);
 }
 
 u64 NameSection::compute_section_size(Context &ctx) {
@@ -104,8 +125,19 @@ u64 NameSection::compute_section_size(Context &ctx) {
     size += 5;                     // content size
     size += get_name_size("name"); // number of names
 
-    size += 1; // global subsec kind
+    // function subsec size
+    size++; // function subsec kind
+    function_subsec_size = 0;
+    function_subsec_size += get_varuint32_size(ctx.functions.size());
+    for (auto &f : ctx.functions) {
+        function_subsec_size += get_varuint32_size(f.wdata.symbol_name.size());
+        function_subsec_size += get_name_size(f.wdata.symbol_name);
+    }
+    size += get_varuint32_size(function_subsec_size);
+    size += function_subsec_size;
+
     // global subsec size
+    size++; // global subsec kind
     global_subsec_size = 0;
     global_subsec_size += get_varuint32_size(ctx.globals.size());
     for (auto &g : ctx.globals) {
@@ -126,20 +158,36 @@ void NameSection::copy_buf(Context &ctx) {
 
     write_name(buf, "name");
 
+    // NOTE: We must write subsections in the order of function, global, etc.
+    // https://github.com/WebAssembly/design/blob/main/BinaryEncoding.md#name-section
+
+    // function subsec kind
+    write_byte(buf, WASM_NAMES_FUNCTION);
+    // function subsec size
+    write_varuint32(buf, function_subsec_size);
+    // function subsec data
+    write_varuint32(buf, ctx.functions.size());
+    int index = 0;
+    for (auto &f : ctx.functions) {
+        write_varuint32(buf, index);
+        write_name(buf, f.wdata.symbol_name);
+        index++;
+    }
+
     // global subsec kind
     write_byte(buf, WASM_NAMES_GLOBAL);
     // global subsec size
     write_varuint32(buf, global_subsec_size);
-
     // global subsec data
-    u32 name_count = ctx.globals.size();
-    write_varuint32(buf, name_count);
-    int index = 0;
+    write_varuint32(buf, ctx.globals.size());
+    index = 0;
     for (auto &g : ctx.globals) {
         write_varuint32(buf, index);
         write_name(buf, g.wdata.symbol_name);
         index++;
     }
+
+    ASSERT(buf == ctx.buf + loc.offset + loc.size);
 }
 
 } // namespace xld::wasm

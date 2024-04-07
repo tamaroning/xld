@@ -83,6 +83,7 @@ void create_synthetic_sections(Context &ctx) {
 
     push(ctx.whdr = new OutputWhdr());
     push(ctx.type = new TypeSection());
+    push(ctx.function = new FunctionSection());
     push(ctx.global = new GlobalSection());
     push(ctx.name = new NameSection());
 
