@@ -27,7 +27,7 @@ class Chunk {
     // virtual OutputSection *to_osec() { return nullptr; }
     virtual void copy_buf(Context &ctx) = 0;
     // virtual void write_to(Context &ctx, u8 *buf) { unreachable(); }
-    // virtual u64 calculate_size(Context &ctx) = 0;
+    virtual u64 compute_section_size(Context &ctx) = 0;
 
     std::string_view name;
     OutputLocation loc;
@@ -38,10 +38,8 @@ class OutputWhdr : public Chunk {
     OutputWhdr() { this->name = "WHDR"; }
 
     void copy_buf(Context &ctx) override;
-    /*
-    u64 calculate_size(Context &ctx) override {
-        return sizeof(WasmObjectHeader);
-    }*/
+
+    u64 compute_section_size(Context &ctx) override;
 };
 
 class GlobalSection : public Chunk {
@@ -49,7 +47,8 @@ class GlobalSection : public Chunk {
     GlobalSection() { this->name = "GLOBAL"; }
 
     void copy_buf(Context &ctx) override;
-    // u64 calculate_size(Context &ctx) override { return 0; }
+
+    u64 compute_section_size(Context &ctx) override;
 
     tbb::concurrent_vector<WasmGlobal *> globals;
 };

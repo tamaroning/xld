@@ -1,27 +1,41 @@
+#include "xld_private/chunk.h"
 #include "common/leb128.h"
-#include "xld.h"
 #include "common/log.h"
+#include "xld.h"
 
 namespace xld::wasm {
 
+u64 OutputWhdr::compute_section_size(Context &ctx) {
+    return sizeof(WasmObjectHeader);
+}
+
 void OutputWhdr::copy_buf(Context &ctx) {
     // https://github.com/tamaroning/mold/blob/3df7c8e89c507865abe0fad4ff5355f4d328f78d/elf/output-chunks.cc#L47
-    WasmObjectHeader &whdr = *((WasmObjectHeader *)ctx.buf);
+    WasmObjectHeader &whdr = *((WasmObjectHeader *)ctx.buf + loc.offset);
     memcpy(whdr.magic, WASM_MAGIC, sizeof(WASM_MAGIC));
     whdr.version = WASM_VERSION;
 }
 
+u64 GlobalSection::compute_section_size(Context &ctx) {
+    u64 size = 5; // section header
+    size += 5;    // content size
+    size += 5;    // number of globals
+    for (WasmGlobal *global : globals) {
+        size += global->span.size();
+    }
+    return size;
+}
+
 void GlobalSection::copy_buf(Context &ctx) {
     // section
-    u8 *buf = ctx.buf + sizeof(WasmObjectHeader);
+    u8 *buf = ctx.buf + loc.offset;
     *(buf++) = WASM_SEC_GLOBAL;
     u32 size = 5;
-    
+
     for (WasmGlobal *global : globals) {
         size += global->span.size();
     }
     buf += encode_uleb128(size, buf, 5);
-    Debug(ctx) << "GlobalSection::copy_buf: size=" << size;
 
     // globals
     buf += encode_uleb128(globals.size(), buf, 5);

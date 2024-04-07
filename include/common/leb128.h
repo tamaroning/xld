@@ -90,7 +90,7 @@ inline unsigned encodeSLEB128(int64_t Value, uint8_t *p, unsigned PadTo = 0) {
 */
 
 inline unsigned encode_uleb128(uint64_t Value, std::ostream &OS,
-                              unsigned PadTo = 0) {
+                               unsigned PadTo = 0) {
     unsigned Count = 0;
     do {
         uint8_t Byte = Value & 0x7f;

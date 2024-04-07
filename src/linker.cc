@@ -5,6 +5,7 @@
 #include "common/output_file.h"
 #include "pass.h"
 #include "xld.h"
+#include "xld_private/chunk.h"
 
 namespace xld::wasm {
 
@@ -99,6 +100,10 @@ int linker_main(int argc, char **argv) {
     // fix_synthetic_symbols(ctx);
 
     // At this point, both memory and file layouts are fixed.
+
+    // Compute sizes of output sections while assigning offsets
+    // within an output section to input sections.
+    compute_section_sizes(ctx);
 
     // https://github.com/tamaroning/mold/blob/3df7c8e89c507865abe0fad4ff5355f4d328f78d/elf/main.cc#L637
     size_t size = 1 * 1024;

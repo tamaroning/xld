@@ -44,8 +44,8 @@ struct Context {
 
     // Output chunks
     std::vector<Chunk *> chunks;
-    OutputWhdr* whdr = nullptr;
-    GlobalSection* global = nullptr;
+    OutputWhdr *whdr = nullptr;
+    GlobalSection *global = nullptr;
 
     // Command-line arguments
     struct {

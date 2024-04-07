@@ -1,3 +1,4 @@
+#include "pass.h"
 #include "common/log.h"
 #include "wasm/object.h"
 #include "xld.h"
@@ -91,6 +92,18 @@ void create_synthetic_sections(Context &ctx) {
             ctx.global->globals.emplace_back(&g);
         }
     });
+}
+
+void compute_section_sizes(Context &ctx) {
+    tbb::parallel_for_each(ctx.chunks, [&](Chunk *chunk) {
+        chunk->loc.size = chunk->compute_section_size(ctx);
+    });
+    
+    u64 offset = 0;
+    for (Chunk *chunk : ctx.chunks) {
+        chunk->loc.offset = offset;
+        offset += chunk->loc.size;
+    }
 }
 
 void copy_chunks(Context &ctx) {
