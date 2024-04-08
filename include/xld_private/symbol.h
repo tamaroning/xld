@@ -26,6 +26,7 @@ class Symbol {
     // bool is_exported = false;
 
     bool is_alive = false;
+    u32 index = 0;
 
     enum class Binding {
         Weak,

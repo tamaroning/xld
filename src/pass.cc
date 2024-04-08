@@ -88,34 +88,30 @@ void create_synthetic_sections(Context &ctx) {
     push(ctx.code = new CodeSection());
     push(ctx.name = new NameSection());
 
-    std::mutex m;
+    std::mutex m_global, m_function;
     tbb::parallel_for_each(ctx.files, [&](InputFile *file) {
         if (file->kind != InputFile::Object) {
             return;
         }
         ObjectFile *obj = static_cast<ObjectFile *>(file);
         for (WasmGlobal g : obj->globals) {
+            std::lock_guard<std::mutex> lock(m_global);
+            get_symbol(ctx, g.symbol_name)->index = ctx.globals.size();
             ctx.globals.emplace_back(OutputElem<WasmGlobal>(g, obj));
         }
-        /*
-        for (WasmSignature s : obj->signatures) {
-            ctx.signatures.emplace_back(OutputElem<WasmSignature>(s, obj));
-        }
-        */
         {
-            std::lock_guard<std::mutex> lock(m);
+            std::lock_guard<std::mutex> lock(m_function);
             for (WasmFunction f : obj->functions) {
-                Debug(ctx) << "Function: " << f.symbol_name;
-                u32 obj_sig_index = f.sig_index;
+                u32 original_sig_index = f.sig_index;
 
                 f.sig_index = ctx.signatures.size();
                 ctx.signatures.emplace_back(OutputElem<WasmSignature>(
-                    obj->signatures[obj_sig_index], obj));
+                    obj->signatures[original_sig_index], obj));
+                get_symbol(ctx, f.symbol_name)->index = ctx.functions.size();
                 ctx.functions.emplace_back(OutputElem<WasmFunction>(f, obj));
             }
             // push the code section to keep the same order as the function
             // section
-            // TODO: info for relocation
             if (obj->code.has_value())
                 ctx.codes.emplace_back(obj->code.value());
         }
