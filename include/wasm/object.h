@@ -241,11 +241,9 @@ const unsigned WASM_SYMBOL_TLS = 0x100;
 const unsigned WASM_SYMBOL_ABSOLUTE = 0x200;
 
 #define WASM_RELOC(name, value) name = value,
-
 enum : unsigned {
 #include "wasm/wasm_relocs.def"
 };
-
 #undef WASM_RELOC
 
 struct WasmObjectHeader {

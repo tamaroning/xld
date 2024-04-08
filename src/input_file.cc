@@ -42,43 +42,19 @@ WASM_RELOC(R_WASM_MEMORY_ADDR_TLS_SLEB64, 25)
 WASM_RELOC(R_WASM_FUNCTION_INDEX_I32, 26)
 */
 
-#define WASM_RELOC_CASE(x, y)                                                  \
+#define WASM_RELOC(x, y)                                                       \
     case (x):                                                                  \
         return (#x);
 
 static std::string_view get_reloc_type_name(u8 type) {
     switch (type) {
-        WASM_RELOC_CASE(R_WASM_FUNCTION_INDEX_LEB, 0)
-        WASM_RELOC_CASE(R_WASM_TABLE_INDEX_SLEB, 1)
-        WASM_RELOC_CASE(R_WASM_TABLE_INDEX_I32, 2)
-        WASM_RELOC_CASE(R_WASM_MEMORY_ADDR_LEB, 3)
-        WASM_RELOC_CASE(R_WASM_MEMORY_ADDR_SLEB, 4)
-        WASM_RELOC_CASE(R_WASM_MEMORY_ADDR_I32, 5)
-        WASM_RELOC_CASE(R_WASM_TYPE_INDEX_LEB, 6)
-        WASM_RELOC_CASE(R_WASM_GLOBAL_INDEX_LEB, 7)
-        WASM_RELOC_CASE(R_WASM_FUNCTION_OFFSET_I32, 8)
-        WASM_RELOC_CASE(R_WASM_SECTION_OFFSET_I32, 9)
-        WASM_RELOC_CASE(R_WASM_TAG_INDEX_LEB, 10)
-        WASM_RELOC_CASE(R_WASM_MEMORY_ADDR_REL_SLEB, 11)
-        WASM_RELOC_CASE(R_WASM_TABLE_INDEX_REL_SLEB, 12)
-        WASM_RELOC_CASE(R_WASM_GLOBAL_INDEX_I32, 13)
-        WASM_RELOC_CASE(R_WASM_MEMORY_ADDR_LEB64, 14)
-        WASM_RELOC_CASE(R_WASM_MEMORY_ADDR_SLEB64, 15)
-        WASM_RELOC_CASE(R_WASM_MEMORY_ADDR_I64, 16)
-        WASM_RELOC_CASE(R_WASM_MEMORY_ADDR_REL_SLEB64, 17)
-        WASM_RELOC_CASE(R_WASM_TABLE_INDEX_SLEB64, 18)
-        WASM_RELOC_CASE(R_WASM_TABLE_INDEX_I64, 19)
-        WASM_RELOC_CASE(R_WASM_TABLE_NUMBER_LEB, 20)
-        WASM_RELOC_CASE(R_WASM_MEMORY_ADDR_TLS_SLEB, 21)
-        WASM_RELOC_CASE(R_WASM_FUNCTION_OFFSET_I64, 22)
-        WASM_RELOC_CASE(R_WASM_MEMORY_ADDR_LOCREL_I32, 23)
-        WASM_RELOC_CASE(R_WASM_TABLE_INDEX_REL_SLEB64, 24)
-        WASM_RELOC_CASE(R_WASM_MEMORY_ADDR_TLS_SLEB64, 25)
-        WASM_RELOC_CASE(R_WASM_FUNCTION_INDEX_I32, 26)
+#include "wasm/wasm_relocs.def"
     default:
         return "<unknown>";
     }
 }
+
+#undef WASM_RELOC
 
 void InputSection::apply_reloc(Context &ctx, u64 osec_content_file_offset) {
     Debug(ctx) << "applying relocs for " << name;
