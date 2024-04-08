@@ -1,8 +1,9 @@
 #include "pass.h"
+#include "common/leb128.h"
 #include "common/log.h"
+#include "common/system.h"
 #include "wasm/object.h"
 #include "xld.h"
-#include "xld_private/chunk.h"
 
 namespace xld::wasm {
 
@@ -130,12 +131,27 @@ u64 compute_section_sizes(Context &ctx) {
     u64 offset = 0;
     for (Chunk *chunk : ctx.chunks) {
         chunk->loc.offset = offset;
-        offset += chunk->loc.size;
-        Debug(ctx) << "Section: " << chunk->name
-                   << " offset: " << chunk->loc.offset
-                   << " size: " << chunk->loc.size;
+        /*
+        if (chunk->sec_id == WASM_SEC_CODE) {
+            u64 offset_beg = offset;
+            offset += get_uleb128_size(ctx.functions.size());
+            for (auto &isec : ctx.codes) {
+                Debug(ctx) << "Code: 0x" << std::hex << isec.loc.size
+                           << " skip: 0x" << isec.loc.skip << " offset: 0x"
+                           << offset;
+                isec.loc.offset = offset;
+                offset += isec.loc.size;
+            }
+            ASSERT(offset_beg + chunk->loc.size == offset);
+        }
+        */ {
+            offset += chunk->loc.size;
+        }
+
+        Debug(ctx) << std::hex << "Section: " << chunk->name << " offset: 0x"
+                   << chunk->loc.offset << " size: 0x" << chunk->loc.size;
     }
-    Debug(ctx) << "Total size: " << offset;
+    Debug(ctx) << std::hex << "Total size: " << offset;
     return offset;
 }
 

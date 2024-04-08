@@ -3,6 +3,7 @@
 #include "common/mmap.h"
 #include "common/system.h"
 #include "wasm/symbol.h"
+#include "xld_private/chunk.h"
 
 namespace xld::wasm {
 
@@ -13,17 +14,30 @@ class ObjectFile;
 class InputSection {
   public:
     InputSection(u8 sec_id, u32 index, ObjectFile *obj, std::string name,
-                 std::span<const u8> span)
-        : sec_id(sec_id), index(index), obj(obj), name(name), span(span) {}
+                 std::span<const u8> span, u64 copy_start)
+        : sec_id(sec_id), index(index), obj(obj), name(name), span(span) {
+        loc.copy_start = copy_start;
+    }
 
     void write_to(Context &ctx, u8 *buf);
+
+    u64 get_size();
 
     u8 sec_id;
     u32 index;
     ObjectFile *obj;
     std::string name;
-    std::span<const u8> span;
     std::vector<WasmRelocation> relocs;
+
+    struct {
+        // offset from beggining of the output section
+        u64 offset = 0;
+        // the number of bytes to copy from the input section
+        u64 copy_start = 0;
+    } loc;
+
+  private:
+    std::span<const u8> span;
 };
 
 class InputFile {
@@ -93,9 +107,6 @@ class ObjectFile : public InputFile {
     std::vector<WasmGlobal> globals;
     std::vector<WasmExport> exports;
     std::vector<WasmElemSegment> elem_segments;
-
-    // TODO: remove?
-    std::vector<std::span<const u8>> codes;
 
     // from the "name" section
     std::string module_name;

@@ -127,9 +127,7 @@ u64 CodeSection::compute_section_size(Context &ctx) {
     size += get_varuint32_size(ctx.functions.size()); // number of code
 
     for (auto &code : ctx.codes) {
-        for (auto &c : code.obj->codes) {
-            size += c.size();
-        }
+        size += code.get_size();
     }
     loc.content_size = size;
     finalize_section_size_common(size);
@@ -145,10 +143,8 @@ void CodeSection::copy_buf(Context &ctx) {
     // functions
     write_varuint32(buf, ctx.functions.size());
     for (auto &code : ctx.codes) {
-        for (auto &c : code.obj->codes) {
-            memcpy(buf, c.data(), c.size());
-            buf += c.size();
-        }
+        code.write_to(ctx, buf);
+        buf += code.get_size();
     }
 
     ASSERT(buf == ctx.buf + loc.offset + loc.size);

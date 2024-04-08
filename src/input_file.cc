@@ -4,8 +4,10 @@
 
 namespace xld::wasm {
 
+u64 InputSection::get_size() { return span.size() - loc.copy_start; }
+
 void InputSection::write_to(Context &ctx, u8 *buf) {
-    memcpy(buf, span.data(), span.size());
+    memcpy(buf, span.data() + loc.copy_start, get_size());
 }
 
 InputFile::InputFile(Context &ctx, const std::string &filename, MappedFile *mf)

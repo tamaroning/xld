@@ -28,13 +28,17 @@ class Chunk {
     virtual u64 compute_section_size(Context &ctx) = 0;
     virtual void copy_buf(Context &ctx) = 0;
 
+    u8 sec_id = 0;
     std::string_view name;
     OutputLocation loc;
 };
 
 class OutputWhdr : public Chunk {
   public:
-    OutputWhdr() { this->name = "header"; }
+    OutputWhdr() {
+        name = "header";
+        sec_id = 0xff;
+    }
 
     u64 compute_section_size(Context &ctx) override;
     void copy_buf(Context &ctx) override;
@@ -42,7 +46,10 @@ class OutputWhdr : public Chunk {
 
 class TypeSection : public Chunk {
   public:
-    TypeSection() { this->name = "type"; }
+    TypeSection() {
+        name = "type";
+        sec_id = WASM_SEC_TYPE;
+    }
 
     u64 compute_section_size(Context &ctx) override;
     void copy_buf(Context &ctx) override;
@@ -50,7 +57,10 @@ class TypeSection : public Chunk {
 
 class FunctionSection : public Chunk {
   public:
-    FunctionSection() { this->name = "function"; }
+    FunctionSection() {
+        name = "function";
+        sec_id = WASM_SEC_FUNCTION;
+    }
 
     u64 compute_section_size(Context &ctx) override;
     void copy_buf(Context &ctx) override;
@@ -58,7 +68,10 @@ class FunctionSection : public Chunk {
 
 class GlobalSection : public Chunk {
   public:
-    GlobalSection() { this->name = "global"; }
+    GlobalSection() {
+        this->name = "global";
+        sec_id = WASM_SEC_GLOBAL;
+    }
 
     u64 compute_section_size(Context &ctx) override;
     void copy_buf(Context &ctx) override;
@@ -66,7 +79,10 @@ class GlobalSection : public Chunk {
 
 class CodeSection : public Chunk {
   public:
-    CodeSection() { this->name = "code"; }
+    CodeSection() {
+        this->name = "code";
+        sec_id = WASM_SEC_CODE;
+    }
 
     u64 compute_section_size(Context &ctx) override;
     void copy_buf(Context &ctx) override;
@@ -75,7 +91,10 @@ class CodeSection : public Chunk {
 // https://github.com/WebAssembly/design/blob/main/BinaryEncoding.md#name-section
 class NameSection : public Chunk {
   public:
-    NameSection() { this->name = "name"; }
+    NameSection() {
+        this->name = "name";
+        sec_id = WASM_SEC_CUSTOM;
+    }
 
     void copy_buf(Context &ctx) override;
 

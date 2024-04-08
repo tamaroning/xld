@@ -789,6 +789,7 @@ void ObjectFile::parse(Context &ctx) {
             foreach_vec(p, f);
         } break;
         case WASM_SEC_CODE: {
+            /*
             std::function<std::span<const u8>(const u8 *&)> f =
                 [&](const u8 *&data) {
                     const u8 *code_start = data;
@@ -798,6 +799,8 @@ void ObjectFile::parse(Context &ctx) {
                     return code;
                 };
             this->codes = parse_vec_varlen(p, f);
+            */
+            p = content_beg + content_size;
         } break;
         case WASM_SEC_DATACOUNT: {
             this->data_count = parse_varuint32(p);
@@ -855,8 +858,10 @@ void ObjectFile::parse(Context &ctx) {
 
         if (sec_id == WASM_SEC_CODE) {
             // TODO: allocate in heap?
-            this->code =
-                InputSection(sec_id, sec_index, this, sec_name, content);
+            u32 copy_start = 0;
+            decodeULEB128(content.data(), &copy_start);
+            this->code = InputSection(sec_id, sec_index, this, sec_name,
+                                      content, copy_start);
         }
         sec_index++;
     }
@@ -923,9 +928,11 @@ void ObjectFile::dump(Context &ctx) {
         Debug(ctx) << "  - export[" << i << "]: " << this->exports[i].name;
     }
     Debug(ctx) << "Code section";
+    /*
     for (int i = 0; i < this->codes.size(); i++) {
         Debug(ctx) << "  - code[" << i << "]";
     }
+    */
     Debug(ctx) << "Data section";
     for (int i = 0; i < this->data_segments.size(); i++) {
         WasmDataSegment &data_seg = this->data_segments[i];
