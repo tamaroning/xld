@@ -124,6 +124,7 @@ int linker_main(int argc, char **argv) {
     ctx.buf = output_file->buf;
 
     copy_chunks(ctx);
+    apply_reloc(ctx);
 
     output_file->close(ctx);
 

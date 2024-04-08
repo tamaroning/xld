@@ -1,3 +1,4 @@
+#include "xld_private/chunk.h"
 #include "common/leb128.h"
 #include "common/log.h"
 #include "wasm/object.h"
@@ -149,6 +150,14 @@ void CodeSection::copy_buf(Context &ctx) {
     }
 
     ASSERT(buf == ctx.buf + loc.offset + loc.size);
+}
+
+void CodeSection::apply_reloc(Context &ctx) {
+    for (auto &code : ctx.codes) {
+        u64 osec_content_file_offset =
+            this->loc.offset + (this->loc.size - this->loc.content_size);
+        code.apply_reloc(ctx, osec_content_file_offset);
+    }
 }
 
 u64 NameSection::compute_section_size(Context &ctx) {

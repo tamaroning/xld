@@ -13,4 +13,6 @@ u64 compute_section_sizes(Context &);
 
 void copy_chunks(Context &);
 
+void apply_reloc(Context &);
+
 } // namespace xld::wasm

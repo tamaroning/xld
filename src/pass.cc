@@ -1,5 +1,4 @@
 #include "pass.h"
-#include "common/leb128.h"
 #include "common/log.h"
 #include "common/system.h"
 #include "wasm/object.h"
@@ -144,6 +143,11 @@ void copy_chunks(Context &ctx) {
         Debug(ctx) << "Copying chunk: " << chunk->name;
         chunk->copy_buf(ctx);
     });
+}
+
+void apply_reloc(Context &ctx) {
+    tbb::parallel_for_each(ctx.chunks,
+                           [&](Chunk *chunk) { chunk->apply_reloc(ctx); });
 }
 
 } // namespace xld::wasm

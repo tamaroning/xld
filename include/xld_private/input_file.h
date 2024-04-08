@@ -20,8 +20,8 @@ class InputSection {
     }
 
     void write_to(Context &ctx, u8 *buf);
-
     u64 get_size();
+    void apply_reloc(Context &ctx, u64 osec_content_offset);
 
     u8 sec_id;
     u32 index;
@@ -31,7 +31,7 @@ class InputSection {
 
     // Used for output
     struct {
-        // offset from beggining of the output section
+        // offset from beggining of the content of output section
         u64 offset = 0;
         // the number of bytes to copy from the input section
         u64 copy_start = 0;

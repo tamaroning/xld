@@ -27,6 +27,7 @@ class Chunk {
 
     virtual u64 compute_section_size(Context &ctx) = 0;
     virtual void copy_buf(Context &ctx) = 0;
+    virtual void apply_reloc(Context &ctx) {}
 
     u8 sec_id = 0;
     std::string_view name;
@@ -86,6 +87,7 @@ class CodeSection : public Chunk {
 
     u64 compute_section_size(Context &ctx) override;
     void copy_buf(Context &ctx) override;
+    void apply_reloc(Context &ctx) override;
 };
 
 // https://github.com/WebAssembly/design/blob/main/BinaryEncoding.md#name-section
