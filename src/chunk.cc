@@ -127,6 +127,7 @@ u64 CodeSection::compute_section_size(Context &ctx) {
     size += get_varuint32_size(ctx.functions.size()); // number of code
 
     for (auto &code : ctx.codes) {
+        code.loc.offset = size;
         size += code.get_size();
     }
     loc.content_size = size;

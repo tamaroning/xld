@@ -131,27 +131,11 @@ u64 compute_section_sizes(Context &ctx) {
     u64 offset = 0;
     for (Chunk *chunk : ctx.chunks) {
         chunk->loc.offset = offset;
-        /*
-        if (chunk->sec_id == WASM_SEC_CODE) {
-            u64 offset_beg = offset;
-            offset += get_uleb128_size(ctx.functions.size());
-            for (auto &isec : ctx.codes) {
-                Debug(ctx) << "Code: 0x" << std::hex << isec.loc.size
-                           << " skip: 0x" << isec.loc.skip << " offset: 0x"
-                           << offset;
-                isec.loc.offset = offset;
-                offset += isec.loc.size;
-            }
-            ASSERT(offset_beg + chunk->loc.size == offset);
-        }
-        */ {
-            offset += chunk->loc.size;
-        }
-
+        offset += chunk->loc.size;
         Debug(ctx) << std::hex << "Section: " << chunk->name << " offset: 0x"
                    << chunk->loc.offset << " size: 0x" << chunk->loc.size;
     }
-    Debug(ctx) << std::hex << "Total size: " << offset;
+    Debug(ctx) << std::hex << "Total size: 0x" << offset;
     return offset;
 }
 

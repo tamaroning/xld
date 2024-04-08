@@ -29,6 +29,7 @@ class InputSection {
     std::string name;
     std::vector<WasmRelocation> relocs;
 
+    // Used for output
     struct {
         // offset from beggining of the output section
         u64 offset = 0;
