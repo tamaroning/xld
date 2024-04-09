@@ -84,7 +84,9 @@ void create_synthetic_sections(Context &ctx) {
     push(ctx.whdr = new OutputWhdr());
     push(ctx.type = new TypeSection());
     push(ctx.function = new FunctionSection());
+    push(ctx.memory = new MemorySection());
     push(ctx.global = new GlobalSection());
+    push(ctx.export_ = new ExportSection());
     push(ctx.code = new CodeSection());
     push(ctx.name = new NameSection());
 
@@ -107,7 +109,8 @@ void create_synthetic_sections(Context &ctx) {
                 f.sig_index = ctx.signatures.size();
                 ctx.signatures.emplace_back(OutputElem<WasmSignature>(
                     obj->signatures[original_sig_index], obj));
-                get_symbol(ctx, f.symbol_name)->index = ctx.functions.size();
+                Symbol *sym = get_symbol(ctx, f.symbol_name);
+                sym->index = ctx.functions.size();
                 ctx.functions.emplace_back(OutputElem<WasmFunction>(f, obj));
             }
             // push the code section to keep the same order as the function

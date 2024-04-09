@@ -2,11 +2,18 @@ build/
 .cache/
 .vscode/
 .clangd
-*.o
-*.wat
-*.wasm
+**/*.o
+**/*.wat
+**/*.wasm
+**/*.so
+**/*.obj
+**/*.a
+**/*.tar.gz
+**/*/*imports
+**/*.out
 
-# for my offline references
+examples/
+
 linking.md
 llvmwasm.h
 mold_symbol.h

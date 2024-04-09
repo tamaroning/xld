@@ -67,11 +67,33 @@ class FunctionSection : public Chunk {
     void copy_buf(Context &ctx) override;
 };
 
+class MemorySection : public Chunk {
+  public:
+    MemorySection() {
+        this->name = "memory";
+        sec_id = WASM_SEC_MEMORY;
+    }
+
+    u64 compute_section_size(Context &ctx) override;
+    void copy_buf(Context &ctx) override;
+};
+
 class GlobalSection : public Chunk {
   public:
     GlobalSection() {
         this->name = "global";
         sec_id = WASM_SEC_GLOBAL;
+    }
+
+    u64 compute_section_size(Context &ctx) override;
+    void copy_buf(Context &ctx) override;
+};
+
+class ExportSection : public Chunk {
+  public:
+    ExportSection() {
+        this->name = "export";
+        sec_id = WASM_SEC_EXPORT;
     }
 
     u64 compute_section_size(Context &ctx) override;

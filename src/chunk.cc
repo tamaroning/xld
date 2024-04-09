@@ -123,6 +123,14 @@ void GlobalSection::copy_buf(Context &ctx) {
     ASSERT(buf == ctx.buf + loc.offset + loc.size);
 }
 
+u64 MemorySection::compute_section_size(Context &ctx) { return 0; }
+
+void MemorySection::copy_buf(Context &ctx) {}
+
+u64 ExportSection::compute_section_size(Context &ctx) { return 0; }
+
+void ExportSection::copy_buf(Context &ctx) {}
+
 u64 CodeSection::compute_section_size(Context &ctx) {
     u64 size = 0;
     size += get_varuint32_size(ctx.functions.size()); // number of code

@@ -46,8 +46,10 @@ struct Context {
     OutputWhdr *whdr = nullptr;
     TypeSection *type = nullptr;
     FunctionSection *function = nullptr;
+    MemorySection *memory = nullptr;
     GlobalSection *global = nullptr;
     CodeSection *code = nullptr;
+    ExportSection *export_ = nullptr;
     NameSection *name = nullptr;
 
     // output elements

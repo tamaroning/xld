@@ -61,6 +61,8 @@ int linker_main(int argc, char **argv) {
         ctx.files.push_back(obj);
     }
 
+    ctx.checkpoint();
+
     // https://github.com/llvm/llvm-project/blob/95258419f6fe2e0922c2c0916fd176b9f7361555/lld/wasm/Driver.cpp#L1152C61-L1152C64
 
     // create internal file containing linker-synthesized symbols
@@ -73,6 +75,8 @@ int linker_main(int argc, char **argv) {
     // - LTO, which requires preliminary symbol resolution before running
     //   and a follow-up re-resolution after the LTO objects are emitted.
     resolve_symbols(ctx);
+
+    ctx.checkpoint();
 
     // compute_import_export(ctx);
 

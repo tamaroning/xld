@@ -344,7 +344,8 @@ void ObjectFile::parse_reloc_sec(Context &ctx, const u8 *&p, const u32 size) {
     Debug(ctx) << "reloc section for section index: " << sec_idx;
     Debug(ctx) << "code section index: " << code.value().index;
     if (!code.has_value() || code.value().index != sec_idx)
-        Fatal(ctx) << "relocations does not refer to the code section";
+        Fatal(ctx) << "relocations does not refer to the code section ("
+                   << this->filename << ")";
     u32 count = parse_varuint32(p);
     for (int i = 0; i < count; i++) {
         u8 type = *p;
@@ -554,8 +555,8 @@ void ObjectFile::parse(Context &ctx) {
         u32 content_size = parse_varuint32(p);
 
         std::string sec_name{sec_id_as_str(sec_id)};
-        Debug(ctx) << "parsing " << sec_name << " (" << sec_index
-                   << "th section)";
+        // Debug(ctx) << "parsing " << sec_name << " (" << sec_index
+        //           << "th section)";
 
         const u8 *content_beg = p;
         std::span<const u8> content{content_beg, content_beg + content_size};
@@ -565,7 +566,7 @@ void ObjectFile::parse(Context &ctx) {
             const u8 *cont_begin = p;
             sec_name = parse_name(p);
             u32 custom_content_size = (content_beg + content_size) - p;
-            Debug(ctx) << "parsing " << sec_name;
+            // Debug(ctx) << "parsing " << sec_name;
             if (sec_name == "linking") {
                 parse_linking_sec(ctx, p, custom_content_size);
             } else if (sec_name.starts_with("reloc.")) {

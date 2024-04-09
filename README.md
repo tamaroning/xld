@@ -1,5 +1,11 @@
 # xld: Fast WASM linker
 
+## TODO
+- output Data and DataCount section
+- reloc.DATA
+- stop if strong undefined syms are not resolved
+
+
 ## References
 
 - lld (wasm-ld): https://github.com/llvm/llvm-project/tree/main/lld/wasm

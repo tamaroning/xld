@@ -56,3 +56,13 @@ https://emscripten.org/docs/optimizing/Optimizing-Code.html
 
 Wasmtime
 https://docs.rs/wasmtime/latest/wasmtime/struct.Linker.html
+
+libc
+wget https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-21/libclang_rt.builtins-wasm32-wasi-21.0.tar.gz
+tar xvf libclang_rt.builtins-wasm32-wasi-21.0.tar.gz
+// lib/wasi/libclang_rt.builtins-wasm32.a
+
+extract libc members
+ar -x ../lib/wasm32-wasi/libc.a
+
+wasm-ld-18 hello.o $WASI_SDK_SYSROOT/lib/wasm32-wasi/libc.a -o hello.wasm --entry=main
