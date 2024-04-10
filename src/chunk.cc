@@ -196,7 +196,11 @@ u64 GlobalSection::compute_section_size(Context &ctx) {
     for (auto &global : ctx.globals) {
         size++; // valtype
         size++; // mut
-        size += get_init_expr_size(ctx, global.wdata.init_expr);
+        if (global.wdata.init_expr.body.has_value()) {
+            size += global.wdata.init_expr.body.value().size();
+        } else {
+            size += get_init_expr_size(ctx, global.wdata.init_expr);
+        }
     }
     loc.content_size = size;
     finalize_section_size_common(size);
@@ -214,7 +218,13 @@ void GlobalSection::copy_buf(Context &ctx) {
     for (auto &global : ctx.globals) {
         write_byte(buf, global.wdata.type.type);
         write_byte(buf, global.wdata.type.mut);
-        write_init_expr(ctx, buf, global.wdata.init_expr);
+        if (global.wdata.init_expr.body.has_value()) {
+            memcpy(buf, global.wdata.init_expr.body.value().data(),
+                   global.wdata.init_expr.body.value().size());
+            buf += global.wdata.init_expr.body.value().size();
+        } else {
+            write_init_expr(ctx, buf, global.wdata.init_expr);
+        }
     }
 
     ASSERT(buf == ctx.buf + loc.offset + loc.size);

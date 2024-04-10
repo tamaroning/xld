@@ -796,7 +796,6 @@ void ObjectFile::parse(Context &ctx) {
                     .type = {.type = val_type, .mut = mut},
                     .init_expr = init_expr,
                     .symbol_name = "",
-                    .span = std::span<const u8>(beg, data),
                 });
             };
             foreach_vec(p, f);

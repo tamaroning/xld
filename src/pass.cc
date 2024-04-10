@@ -27,11 +27,15 @@ void resolve_symbols(Context &ctx) {
 }
 
 static WasmInitExpr int32_const(i32 value) {
-    WasmInitExpr ie;
-    ie.extended = false;
-    ie.inst.opcode = WASM_OPCODE_I32_CONST;
-    ie.inst.value.int32 = value;
-    return ie;
+    return WasmInitExpr{
+        .extended = false,
+        .inst =
+            {
+                .opcode = WASM_OPCODE_I32_CONST,
+                .value = {.int32 = value},
+            },
+        .body = std::nullopt,
+    };
 }
 
 static void add_synthetic_global_symbol(Context &ctx, ObjectFile *obj,
@@ -64,12 +68,9 @@ void create_internal_file(Context &ctx) {
     {
         // TODO: writeInitExpr equivalent
         // https://github.com/llvm/llvm-project/blob/e6f63a942a45e3545332cd9a43982a69a4d5667b/lld/wasm/WriterUtils.cpp#L169
-        std::string *sp = new std::string("\x7f\x01\x41\x80\x88\x04\x0b");
-        WasmGlobal *g =
-            new WasmGlobal{.type = mutable_global_type_i32,
-                           .init_expr = int32_const(0),
-                           .symbol_name = "__stack_pointer",
-                           .span = std::span<u8>((u8 *)sp->data(), sp->size())};
+        WasmGlobal *g = new WasmGlobal{.type = mutable_global_type_i32,
+                                       .init_expr = int32_const(0),
+                                       .symbol_name = "__stack_pointer"};
         add_synthetic_global_symbol(ctx, obj, g);
         get_symbol(ctx, g->symbol_name)->is_alive = true;
     }

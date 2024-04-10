@@ -284,7 +284,7 @@ struct WasmInitExpr {
     uint8_t extended; // Set to non-zero if extended const is used (i.e. more
                       // than one instruction)
     WasmInitExprMVP inst;
-    std::span<const uint8_t> body;
+    std::optional<std::span<const uint8_t>> body;
 };
 
 struct WasmGlobalType {
@@ -297,7 +297,6 @@ struct WasmGlobal {
     WasmGlobalType type;
     WasmInitExpr init_expr;
     std::string symbol_name; // from the "linking" section
-    std::span<const u8> span;
 };
 
 struct WasmLimits {
