@@ -67,6 +67,17 @@ class FunctionSection : public Chunk {
     void copy_buf(Context &ctx) override;
 };
 
+class TableSection : public Chunk {
+  public:
+    TableSection() {
+        name = "table";
+        sec_id = WASM_SEC_TABLE;
+    }
+
+    u64 compute_section_size(Context &ctx) override;
+    void copy_buf(Context &ctx) override;
+};
+
 class MemorySection : public Chunk {
   public:
     MemorySection() {

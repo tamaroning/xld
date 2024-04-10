@@ -150,6 +150,11 @@ void ObjectFile::resolve_symbols(Context &ctx) {
 
         Symbol *sym = get_symbol(ctx, wsym.info.name);
 
+        if (wsym.is_exported())
+            sym->is_exported = true;
+
+        // TODO: clean
+
         bool is_weak_def = wsym.is_defined() && wsym.is_binding_weak();
         bool is_global_def = wsym.is_defined() && wsym.is_binding_global();
 

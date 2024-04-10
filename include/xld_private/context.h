@@ -4,6 +4,7 @@
 #include "common/mmap.h"
 #include "common/system.h"
 #include "output_elem.h"
+#include "wasm/object.h"
 #include "xld_private/chunk.h"
 #include "xld_private/input_file.h"
 
@@ -46,6 +47,7 @@ struct Context {
     OutputWhdr *whdr = nullptr;
     TypeSection *type = nullptr;
     FunctionSection *function = nullptr;
+    TableSection *table = nullptr;
     MemorySection *memory = nullptr;
     GlobalSection *global = nullptr;
     CodeSection *code = nullptr;
@@ -53,10 +55,11 @@ struct Context {
     NameSection *name = nullptr;
 
     // output elements
-    tbb::concurrent_vector<OutputElem<WasmSignature>> signatures;
-    tbb::concurrent_vector<OutputElem<WasmFunction>> functions;
-    tbb::concurrent_vector<OutputElem<WasmGlobal>> globals;
-    tbb::concurrent_vector<InputSection> codes;
+    std::vector<OutputElem<WasmSignature>> signatures;
+    std::vector<OutputElem<WasmFunction>> functions;
+    std::vector<WasmExport> exports;
+    std::vector<OutputElem<WasmGlobal>> globals;
+    std::vector<InputSection> codes;
 
     // Command-line arguments
     struct {

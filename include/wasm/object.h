@@ -427,7 +427,7 @@ struct WasmFunction {
     // from the "linking" section
     std::string symbol_name;
     // from the "export" section
-    std::string export_name;
+    std::optional<std::string> export_name;
     // from the "name" section
     std::string debug_name;
 };

@@ -26,10 +26,9 @@
 
 namespace xld {
 
-/*
 /// Utility function to encode a SLEB128 value to an output stream. Returns
 /// the length in bytes of the encoded value.
-inline unsigned encodeSLEB128(int64_t Value, raw_ostream &OS,
+inline unsigned encode_sleb128(int64_t Value, std::ostream &OS,
                               unsigned PadTo = 0) {
     bool More;
     unsigned Count = 0;
@@ -56,12 +55,10 @@ inline unsigned encodeSLEB128(int64_t Value, raw_ostream &OS,
     }
     return Count;
 }
-*/
 
-/*
 /// Utility function to encode a SLEB128 value to a buffer. Returns
 /// the length in bytes of the encoded value.
-inline unsigned encodeSLEB128(int64_t Value, uint8_t *p, unsigned PadTo = 0) {
+inline unsigned encode_sleb128(int64_t Value, uint8_t *p, unsigned PadTo = 0) {
     uint8_t *orig_p = p;
     unsigned Count = 0;
     bool More;
@@ -87,7 +84,6 @@ inline unsigned encodeSLEB128(int64_t Value, uint8_t *p, unsigned PadTo = 0) {
     }
     return (unsigned)(p - orig_p);
 }
-*/
 
 inline unsigned encode_uleb128(uint64_t Value, std::ostream &OS,
                                unsigned PadTo = 0) {

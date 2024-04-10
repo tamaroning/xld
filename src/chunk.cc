@@ -12,7 +12,35 @@ static void write_varuint32(u8 *&buf, u32 value) {
 
 static u32 get_varuint32_size(u32 value) { return get_uleb128_size(value); }
 
+static void write_varuint64(u8 *&buf, u64 value) {
+    buf += encode_uleb128(value, buf);
+}
+
+static u32 get_varuint64_size(u64 value) { return get_uleb128_size(value); }
+
+static void write_varint32(u8 *&buf, i32 value) {
+    buf += encode_sleb128(value, buf);
+}
+
+static u32 get_varint32_size(i32 value) { return get_sleb128_size(value); }
+
+static void write_varint64(u8 *&buf, i64 value) {
+    buf += encode_sleb128(value, buf);
+}
+
+static u32 get_varint64_size(i64 value) { return get_sleb128_size(value); }
+
 static void write_byte(u8 *&buf, u8 byte) { *(buf++) = byte; }
+
+static void write_u32(u8 *&buf, u32 value) {
+    memcpy(buf, &value, sizeof(value));
+    buf += sizeof(value);
+}
+
+static void write_u64(u8 *&buf, u64 value) {
+    memcpy(buf, &value, sizeof(value));
+    buf += sizeof(value);
+}
 
 static void write_name(u8 *&buf, std::string_view name) {
     write_varuint32(buf, name.size());
@@ -107,6 +135,37 @@ u64 GlobalSection::compute_section_size(Context &ctx) {
     return size;
 }
 
+static void write_init_expr_mvp(Context &ctx, u8 *buf, WasmInitExprMVP &inst) {
+    write_byte(buf, inst.opcode);
+    switch (inst.opcode) {
+    case WASM_OPCODE_I32_CONST:
+        write_varint32(buf, inst.value.int32);
+        break;
+    case WASM_OPCODE_I64_CONST:
+        write_varint64(buf, inst.value.int64);
+        break;
+    case WASM_OPCODE_F32_CONST:
+        write_u32(buf, inst.value.float32);
+        break;
+    case WASM_OPCODE_F64_CONST:
+        write_u64(buf, inst.value.float64);
+        break;
+    case WASM_OPCODE_GLOBAL_GET:
+        write_varuint32(buf, inst.value.global);
+        break;
+    case WASM_OPCODE_REF_NULL:
+        write_byte(buf, ValType::EXTERNREF);
+        break;
+    default:
+        Fatal(ctx) << "Invalid opcode in MVP init_expr";
+    }
+}
+
+static void write_init_expr(Context &ctx, u8 *buf, WasmInitExpr &init_expr) {
+    assert(!init_expr.extended);
+    write_init_expr_mvp(ctx, buf, init_expr.inst);
+}
+
 void GlobalSection::copy_buf(Context &ctx) {
     u8 *buf = ctx.buf + loc.offset;
     write_byte(buf, WASM_SEC_GLOBAL);
@@ -123,13 +182,46 @@ void GlobalSection::copy_buf(Context &ctx) {
     ASSERT(buf == ctx.buf + loc.offset + loc.size);
 }
 
+u64 TableSection::compute_section_size(Context &ctx) {
+    u64 size = 0;
+    return size;
+}
+
+void TableSection::copy_buf(Context &ctx) {}
+
 u64 MemorySection::compute_section_size(Context &ctx) { return 0; }
 
 void MemorySection::copy_buf(Context &ctx) {}
 
-u64 ExportSection::compute_section_size(Context &ctx) { return 0; }
+u64 ExportSection::compute_section_size(Context &ctx) {
+    u64 size = 0;
+    size += get_varuint32_size(ctx.exports.size()); // number of exports
+    for (auto &e : ctx.exports) {
+        size += get_name_size(e.name);
+        size += 1;
+        size += get_varuint32_size(e.index);
+    }
+    loc.content_size = size;
+    finalize_section_size_common(size);
+    return size;
+}
 
-void ExportSection::copy_buf(Context &ctx) {}
+void ExportSection::copy_buf(Context &ctx) {
+    u8 *buf = ctx.buf + loc.offset;
+    write_byte(buf, WASM_SEC_EXPORT);
+    // content size
+    write_varuint32(buf, loc.content_size);
+
+    // exports
+    write_varuint32(buf, ctx.exports.size());
+    for (auto &export_ : ctx.exports) {
+        write_name(buf, export_.name);
+        write_byte(buf, export_.kind);
+        write_varuint32(buf, export_.index);
+    }
+
+    ASSERT(buf == ctx.buf + loc.offset + loc.size);
+}
 
 u64 CodeSection::compute_section_size(Context &ctx) {
     u64 size = 0;

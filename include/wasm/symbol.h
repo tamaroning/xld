@@ -75,6 +75,10 @@ class WasmSymbol {
     unsigned get_visibility() const {
         return info.flags & wasm::WASM_SYMBOL_VISIBILITY_MASK;
     }
+
+    bool is_exported() const {
+        return (info.flags & wasm::WASM_SYMBOL_EXPORTED) != 0;
+    }
 };
 
 } // namespace xld::wasm

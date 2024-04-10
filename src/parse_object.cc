@@ -16,6 +16,20 @@ static u64 parse_varuint64(const u8 *&data) {
 static i32 parse_varint32(const u8 *&data) { return decodeSLEB128AndInc(data); }
 static i64 parse_varint64(const u8 *&data) { return decodeSLEB128AndInc(data); }
 
+static i32 parse_float32(const u8 *&data) {
+    i32 result = 0;
+    memcpy(&result, data, sizeof(result));
+    data += 4;
+    return result;
+}
+
+static i64 parse_float64(const u8 *&data) {
+    i64 result = 0;
+    memcpy(&result, data, sizeof(result));
+    data += 8;
+    return result;
+}
+
 // Parse vector of variable-length element and increment pointer
 // f needs to increment pointer
 template <typename T>
@@ -454,12 +468,10 @@ WasmInitExpr ObjectFile::parse_init_expr(Context &ctx, const u8 *&data) {
         e.value.int64 = parse_varint32(data);
         break;
     case wasm::WASM_OPCODE_F32_CONST:
-        // IEEE754 encoded 32bit value
-        data += 4;
+        e.value.float32 = parse_float32(data);
         break;
     case wasm::WASM_OPCODE_F64_CONST:
-        // IEEE754 encoded 64bit value
-        data += 8;
+        e.value.float64 = parse_float64(data);
         break;
     case wasm::WASM_OPCODE_GLOBAL_GET:
         e.value.global = parse_varuint32(data);
@@ -910,7 +922,8 @@ void ObjectFile::dump(Context &ctx) {
         const WasmFunction &func = this->functions[i];
         Debug(ctx) << "  - func[" << i + num_imported_functions
                    << "]: " << func.symbol_name << " (type[" << func.sig_index
-                   << "], export_name=" << func.export_name << ")";
+                   << "], export_name=" << func.export_name.value_or("<null>")
+                   << ")";
     }
     Debug(ctx) << "Memory section";
     for (int i = 0; i < this->memories.size(); i++) {
