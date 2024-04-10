@@ -1,4 +1,3 @@
-#include "xld_private/chunk.h"
 #include "common/leb128.h"
 #include "common/log.h"
 #include "wasm/object.h"

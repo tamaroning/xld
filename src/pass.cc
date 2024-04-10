@@ -4,6 +4,7 @@
 #include "wasm/object.h"
 #include "xld.h"
 #include "xld_private/input_file.h"
+#include "xld_private/symbol.h"
 
 namespace xld::wasm {
 
@@ -66,13 +67,14 @@ void create_internal_file(Context &ctx) {
     // TODO: PIC
     // TODO: wasm64
     {
-        // TODO: writeInitExpr equivalent
         // https://github.com/llvm/llvm-project/blob/e6f63a942a45e3545332cd9a43982a69a4d5667b/lld/wasm/WriterUtils.cpp#L169
         WasmGlobal *g = new WasmGlobal{.type = mutable_global_type_i32,
                                        .init_expr = int32_const(0),
                                        .symbol_name = "__stack_pointer"};
         add_synthetic_global_symbol(ctx, obj, g);
         get_symbol(ctx, g->symbol_name)->is_alive = true;
+        get_symbol(ctx, g->symbol_name)->visibility =
+            Symbol::Visibility::Hidden;
     }
 
     ctx.files.push_back(obj);
@@ -103,7 +105,7 @@ void create_synthetic_sections(Context &ctx) {
         for (WasmGlobal g : obj->globals) {
             Symbol *sym = get_symbol(ctx, g.symbol_name);
             sym->index = ctx.globals.size();
-            if (sym->is_exported) {
+            if (should_export_symbol(ctx, sym)) {
                 ctx.exports.emplace_back(WasmExport{
                     .name = g.symbol_name,
                     .kind = WASM_EXTERNAL_GLOBAL,
@@ -122,7 +124,7 @@ void create_synthetic_sections(Context &ctx) {
             Symbol *sym = get_symbol(ctx, f.symbol_name);
             u32 index = ctx.functions.size();
             sym->index = index;
-            if (sym->is_exported) {
+            if (should_export_symbol(ctx, sym)) {
                 ctx.exports.emplace_back(WasmExport{
                     .name = f.export_name.value_or(f.symbol_name),
                     .kind = WASM_EXTERNAL_FUNCTION,

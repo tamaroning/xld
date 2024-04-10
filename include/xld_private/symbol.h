@@ -23,24 +23,26 @@ class Symbol {
     bool is_undefined() const { return file == nullptr; }
 
     // bool is_imported = false;
+    
+    // whether or not the symbol is originally exported
     bool is_exported = false;
-
     bool is_alive = false;
+
     u32 index = 0;
 
     enum class Binding {
         Weak,
         Global,
     } binding = Binding::Weak;
+
+    enum class Visibility {
+        Default,
+        Hidden,
+    } visibility = Visibility::Default;
 };
 
-// If we haven't seen the same `name` before, create a new instance
-// of Symbol and returns it. Otherwise, returns the previously-
-// instantiated object.
-inline Symbol *get_symbol(Context &ctx, std::string_view name) {
-    typename decltype(ctx.symbol_map)::const_accessor acc;
-    ctx.symbol_map.insert(acc, {name, Symbol(name, nullptr)});
-    return const_cast<Symbol *>(&acc->second);
-}
+Symbol *get_symbol(Context &ctx, std::string_view name);
+
+bool should_export_symbol(Context &ctx, Symbol *sym);
 
 } // namespace xld::wasm

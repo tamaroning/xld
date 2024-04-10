@@ -63,6 +63,8 @@ struct Context {
 
     // Command-line arguments
     struct {
+        bool export_all = false;
+
         bool color_diagnostics = true;
         std::string chroot;
     } arg;

@@ -19,8 +19,13 @@ int linker_main(int argc, char **argv) {
     // read files
     std::vector<std::string> input_files;
     for (int i = 1; i < argc; i++) {
-        std::string path = path_clean(argv[i]);
-        input_files.push_back(path);
+        std::string arg = argv[i];
+        if (arg == "--export-all") {
+            ctx.arg.export_all = true;
+        } else {
+            std::string path = path_clean(argv[i]);
+            input_files.push_back(path);
+        }
     }
 
     if (input_files.empty())
