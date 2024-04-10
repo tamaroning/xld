@@ -124,18 +124,41 @@ void FunctionSection::copy_buf(Context &ctx) {
     ASSERT(buf == ctx.buf + loc.offset + loc.size);
 }
 
-u64 GlobalSection::compute_section_size(Context &ctx) {
-    u64 size = 0;
-    size += get_varuint32_size(ctx.globals.size()); // number of globals
-    for (auto &global : ctx.globals) {
-        size += global.wdata.span.size();
+static u32 get_init_expr_mvp_size(Context &ctx, WasmInitExprMVP &inst) {
+    u32 size = 0;
+    size++;
+    switch (inst.opcode) {
+    case WASM_OPCODE_I32_CONST:
+        size += get_varint32_size(inst.value.int32);
+        break;
+    case WASM_OPCODE_I64_CONST:
+        size += get_varint64_size(inst.value.int64);
+        break;
+    case WASM_OPCODE_F32_CONST:
+        size += sizeof(inst.value.float32);
+        break;
+    case WASM_OPCODE_F64_CONST:
+        size += sizeof(inst.value.float64);
+        break;
+    case WASM_OPCODE_GLOBAL_GET:
+        size += get_varuint32_size(inst.value.global);
+        break;
+    case WASM_OPCODE_REF_NULL:
+        size++;
+        break;
+    default:
+        Fatal(ctx) << "Invalid opcode in MVP init_expr";
     }
-    loc.content_size = size;
-    finalize_section_size_common(size);
+    size++; // END
     return size;
 }
 
-static void write_init_expr_mvp(Context &ctx, u8 *buf, WasmInitExprMVP &inst) {
+static u32 get_init_expr_size(Context &ctx, WasmInitExpr &init_expr) {
+    assert(!init_expr.extended);
+    return get_init_expr_mvp_size(ctx, init_expr.inst);
+}
+
+static void write_init_expr_mvp(Context &ctx, u8 *&buf, WasmInitExprMVP &inst) {
     write_byte(buf, inst.opcode);
     switch (inst.opcode) {
     case WASM_OPCODE_I32_CONST:
@@ -159,11 +182,25 @@ static void write_init_expr_mvp(Context &ctx, u8 *buf, WasmInitExprMVP &inst) {
     default:
         Fatal(ctx) << "Invalid opcode in MVP init_expr";
     }
+    write_byte(buf, WASM_OPCODE_END);
 }
 
-static void write_init_expr(Context &ctx, u8 *buf, WasmInitExpr &init_expr) {
+static void write_init_expr(Context &ctx, u8 *&buf, WasmInitExpr &init_expr) {
     assert(!init_expr.extended);
     write_init_expr_mvp(ctx, buf, init_expr.inst);
+}
+
+u64 GlobalSection::compute_section_size(Context &ctx) {
+    u64 size = 0;
+    size += get_varuint32_size(ctx.globals.size()); // number of globals
+    for (auto &global : ctx.globals) {
+        size++; // valtype
+        size++; // mut
+        size += get_init_expr_size(ctx, global.wdata.init_expr);
+    }
+    loc.content_size = size;
+    finalize_section_size_common(size);
+    return size;
 }
 
 void GlobalSection::copy_buf(Context &ctx) {
@@ -175,8 +212,9 @@ void GlobalSection::copy_buf(Context &ctx) {
     // globals
     write_varuint32(buf, ctx.globals.size());
     for (auto &global : ctx.globals) {
-        memcpy(buf, global.wdata.span.data(), global.wdata.span.size());
-        buf += global.wdata.span.size();
+        write_byte(buf, global.wdata.type.type);
+        write_byte(buf, global.wdata.type.mut);
+        write_init_expr(ctx, buf, global.wdata.init_expr);
     }
 
     ASSERT(buf == ctx.buf + loc.offset + loc.size);
