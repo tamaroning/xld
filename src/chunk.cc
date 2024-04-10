@@ -147,7 +147,8 @@ static u32 get_init_expr_mvp_size(Context &ctx, WasmInitExprMVP &inst) {
         size++;
         break;
     default:
-        Fatal(ctx) << "Invalid opcode in MVP init_expr";
+        Fatal(ctx) << "Invalid opcode in MVP init_expr: 0x" << std::hex
+                   << inst.opcode;
     }
     size++; // END
     return size;
@@ -180,7 +181,8 @@ static void write_init_expr_mvp(Context &ctx, u8 *&buf, WasmInitExprMVP &inst) {
         write_byte(buf, ValType::EXTERNREF);
         break;
     default:
-        Fatal(ctx) << "Invalid opcode in MVP init_expr";
+        Fatal(ctx) << "Invalid opcode in MVP init_expr: 0x" << std::hex
+                   << inst.opcode;
     }
     write_byte(buf, WASM_OPCODE_END);
 }
