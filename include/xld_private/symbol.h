@@ -23,7 +23,7 @@ class Symbol {
     bool is_undefined() const { return file == nullptr; }
 
     // bool is_imported = false;
-    
+
     // whether or not the symbol is originally exported
     bool is_exported = false;
     bool is_alive = false;

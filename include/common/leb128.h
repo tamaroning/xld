@@ -29,7 +29,7 @@ namespace xld {
 /// Utility function to encode a SLEB128 value to an output stream. Returns
 /// the length in bytes of the encoded value.
 inline unsigned encode_sleb128(int64_t Value, std::ostream &OS,
-                              unsigned PadTo = 0) {
+                               unsigned PadTo = 0) {
     bool More;
     unsigned Count = 0;
     do {
