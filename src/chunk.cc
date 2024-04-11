@@ -47,13 +47,31 @@ static void write_name(u8 *&buf, std::string_view name) {
     buf += name.size();
 }
 
+static u32 get_name_size(std::string_view name) {
+    return get_uleb128_size(name.size()) + name.size();
+}
+
+static void write_limits(u8 *&buf, WasmLimits &limits) {
+    write_byte(buf, limits.flags);
+    write_varuint32(buf, limits.minimum);
+    if (limits.flags & WASM_LIMITS_FLAG_HAS_MAX) {
+        write_varuint32(buf, limits.maximum);
+    }
+}
+
+static u32 get_limits_size(WasmLimits &limits) {
+    u32 size = 0;
+    size++; // flags
+    size += get_varuint32_size(limits.minimum);
+    if (limits.flags & WASM_LIMITS_FLAG_HAS_MAX) {
+        size += get_varuint32_size(limits.maximum);
+    }
+    return size;
+}
+
 static void finalize_section_size_common(u64 &size) {
     size++;
     size += get_varuint32_size(size);
-}
-
-static u32 get_name_size(std::string_view name) {
-    return get_uleb128_size(name.size()) + name.size();
 }
 
 u64 OutputWhdr::compute_section_size(Context &ctx) {
@@ -238,9 +256,28 @@ u64 TableSection::compute_section_size(Context &ctx) {
 
 void TableSection::copy_buf(Context &ctx) {}
 
-u64 MemorySection::compute_section_size(Context &ctx) { return 0; }
+u64 MemorySection::compute_section_size(Context &ctx) {
+    u64 size = 0;
+    size += get_varuint32_size(1); // number of memories
+    size += get_limits_size(ctx.output_memory);
 
-void MemorySection::copy_buf(Context &ctx) {}
+    loc.content_size = size;
+    finalize_section_size_common(size);
+    return size;
+}
+
+void MemorySection::copy_buf(Context &ctx) {
+    u8 *buf = ctx.buf + loc.offset;
+    write_byte(buf, WASM_SEC_MEMORY);
+    // content size
+    write_varuint32(buf, loc.content_size);
+
+    // memories
+    write_varuint32(buf, 1);
+    write_limits(buf, ctx.output_memory);
+
+    ASSERT(buf == ctx.buf + loc.offset + loc.size);
+}
 
 u64 ExportSection::compute_section_size(Context &ctx) {
     u64 size = 0;

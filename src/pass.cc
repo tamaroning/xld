@@ -64,12 +64,10 @@ void create_internal_file(Context &ctx) {
     static WasmGlobalType mutable_global_typeI64 = {ValType(WASM_TYPE_I64),
                                                     true};
 
-    // TODO: PIC
-    // TODO: wasm64
     {
         // https://github.com/llvm/llvm-project/blob/e6f63a942a45e3545332cd9a43982a69a4d5667b/lld/wasm/WriterUtils.cpp#L169
         WasmGlobal *g = new WasmGlobal{.type = mutable_global_type_i32,
-                                       .init_expr = int32_const(0),
+                                       .init_expr = int32_const(65536 - 16),
                                        .symbol_name = "__stack_pointer"};
         add_synthetic_global_symbol(ctx, obj, g);
         get_symbol(ctx, g->symbol_name)->is_alive = true;
@@ -96,10 +94,20 @@ void create_synthetic_sections(Context &ctx) {
     push(ctx.code = new CodeSection());
     push(ctx.name = new NameSection());
 
+    {
+        ctx.output_memory = WasmLimits{.flags = 0, .minimum = 1, .maximum = 0};
+        ctx.exports.emplace_back(WasmExport{
+            .name = std::string(kDefaultMemoryName),
+            .kind = WASM_EXTERNAL_MEMORY,
+            .index = 0,
+        });
+    }
+
     for (InputFile *file : ctx.files) {
         if (file->kind != InputFile::Object) {
             return;
         }
+
         // globals
         ObjectFile *obj = static_cast<ObjectFile *>(file);
         for (WasmGlobal g : obj->globals) {

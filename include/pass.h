@@ -3,6 +3,8 @@
 
 namespace xld::wasm {
 
+const std::string_view kDefaultMemoryName = "memory";
+
 void resolve_symbols(Context &);
 
 void create_internal_file(Context &);

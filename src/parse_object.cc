@@ -355,8 +355,6 @@ void ObjectFile::parse_linking_sec(Context &ctx, const u8 *&p, const u32 size) {
 
 void ObjectFile::parse_reloc_sec(Context &ctx, const u8 *&p, const u32 size) {
     u32 sec_idx = parse_varuint32(p);
-    Debug(ctx) << "reloc section for section index: " << sec_idx;
-    Debug(ctx) << "code section index: " << code.value().index;
     if (!code.has_value() || code.value().index != sec_idx)
         Fatal(ctx) << "relocations does not refer to the code section ("
                    << this->filename << ")";
