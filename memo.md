@@ -66,3 +66,14 @@ extract libc members
 ar -x ../lib/wasm32-wasi/libc.a
 
 wasm-ld-18 hello.o $WASI_SDK_SYSROOT/lib/wasm32-wasi/libc.a -o hello.wasm --entry=main
+
+
+
+
+wasm-ld-18 ./examples/libc-extract/getcwd.o -o getcwd.wasm --no-entry --allow-undefined --export-all
+allow-undefinedをつけないと
+wasm-ld-18: error: ./examples/libc-extract/getcwd.o: undefined symbol: strdup
+wasm-ld-18: error: ./examples/libc-extract/getcwd.o: undefined symbol: errno
+wasm-ld-18: error: ./examples/libc-extract/getcwd.o: undefined symbol: strlen
+wasm-ld-18: error: ./examples/libc-extract/getcwd.o: undefined symbol: strcpy
+wasm-ld-18: error: ./examples/libc-extract/getcwd.o: undefined symbol: errno

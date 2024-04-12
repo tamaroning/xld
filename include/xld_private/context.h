@@ -34,6 +34,7 @@ struct Context {
     tbb::concurrent_vector<std::unique_ptr<MappedFile>> mf_pool;
     tbb::concurrent_vector<std::unique_ptr<u8[]>> string_pool;
     tbb::concurrent_vector<std::unique_ptr<Chunk>> chunk_pool;
+    tbb::concurrent_vector<std::unique_ptr<InputSection>> isec_pool;
 
     // Symbol table
     // TODO: use xxHash
@@ -60,7 +61,8 @@ struct Context {
     WasmLimits output_memory;
     std::vector<OutputElem<WasmGlobal>> globals;
     std::vector<WasmExport> exports;
-    std::vector<InputSection> codes;
+
+    std::vector<InputSection *> codes;
 
     // Command-line arguments
     struct {

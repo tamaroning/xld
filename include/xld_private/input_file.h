@@ -98,7 +98,10 @@ class ObjectFile : public InputFile {
     void dump(Context &ctx);
 
     // Spans of all sections
-    std::optional<InputSection> code = std::nullopt;
+    std::vector<InputSection *> sections;
+    std::optional<InputSection *> code = std::nullopt;
+    std::optional<InputSection *> data = std::nullopt;
+    std::vector<InputSection *> customs;
 
     std::vector<WasmSignature> signatures;
     std::vector<WasmImport> imports;

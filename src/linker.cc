@@ -34,7 +34,8 @@ int linker_main(int argc, char **argv) {
     tbb::concurrent_vector<ObjectFile *> objs;
     tbb::parallel_for_each(input_files, [&](auto &path) {
         MappedFile *mf = must_open_file(ctx, path);
-        SyncOut(ctx) << "Open " << path << get_file_type(ctx, mf);
+        SyncOut(ctx) << "Open " << path << " (" << get_file_type(ctx, mf)
+                     << ")";
         switch (get_file_type(ctx, mf)) {
         case FileType::WASM_OBJ: {
             ObjectFile *obj = ObjectFile::create(ctx, path, mf);

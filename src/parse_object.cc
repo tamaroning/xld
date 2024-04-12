@@ -4,6 +4,7 @@
 #include "common/system.h"
 #include "wasm/object.h"
 #include "xld.h"
+#include <memory>
 
 namespace xld::wasm {
 
@@ -355,9 +356,12 @@ void ObjectFile::parse_linking_sec(Context &ctx, const u8 *&p, const u32 size) {
 
 void ObjectFile::parse_reloc_sec(Context &ctx, const u8 *&p, const u32 size) {
     u32 sec_idx = parse_varuint32(p);
-    if (!code.has_value() || code.value().index != sec_idx)
-        Fatal(ctx) << "relocations does not refer to the code section ("
-                   << this->filename << ")";
+    u8 target = sections[sec_idx]->sec_id;
+    if (target != WASM_SEC_CODE && target != WASM_SEC_DATA &&
+        target != WASM_SEC_CUSTOM)
+        Fatal(ctx)
+            << "relocations must refer to the code or data or custom section ("
+            << this->filename << ")";
     u32 count = parse_varuint32(p);
     for (int i = 0; i < count; i++) {
         u8 type = *p;
@@ -386,7 +390,7 @@ void ObjectFile::parse_reloc_sec(Context &ctx, const u8 *&p, const u32 size) {
             addend = parse_varint32(p);
             break;
         }
-        this->code.value().relocs.push_back(WasmRelocation{
+        sections[sec_idx]->relocs.push_back(WasmRelocation{
             .type = type,
             .index = index,
             .offset = offset,
@@ -866,13 +870,24 @@ void ObjectFile::parse(Context &ctx) {
                 << content_size;
         }
 
-        if (sec_id == WASM_SEC_CODE) {
-            // TODO: allocate in heap?
+        ASSERT(sections.size() == sec_index);
+        {
             u32 copy_start = 0;
             decodeULEB128(content.data(), &copy_start);
-            this->code = InputSection(sec_id, sec_index, this, sec_name,
-                                      content, copy_start);
+            InputSection *isec = new InputSection(
+                sec_id, sec_index, this, sec_name, content, copy_start);
+            ctx.isec_pool.emplace_back(isec);
+            this->sections.emplace_back(isec);
+
+            if (sec_id == WASM_SEC_CODE) {
+                this->code = isec;
+            } else if (sec_id == WASM_SEC_DATA) {
+                this->data = isec;
+            } else if (sec_id == WASM_SEC_CUSTOM) {
+                this->customs.emplace_back(isec);
+            }
         }
+
         sec_index++;
     }
 }

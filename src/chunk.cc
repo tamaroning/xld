@@ -313,9 +313,9 @@ u64 CodeSection::compute_section_size(Context &ctx) {
     u64 size = 0;
     size += get_varuint32_size(ctx.functions.size()); // number of code
 
-    for (auto &code : ctx.codes) {
-        code.loc.offset = size;
-        size += code.get_size();
+    for (auto code : ctx.codes) {
+        code->loc.offset = size;
+        size += code->get_size();
     }
     loc.content_size = size;
     finalize_section_size_common(size);
@@ -331,8 +331,8 @@ void CodeSection::copy_buf(Context &ctx) {
     // functions
     write_varuint32(buf, ctx.functions.size());
     for (auto &code : ctx.codes) {
-        code.write_to(ctx, buf);
-        buf += code.get_size();
+        code->write_to(ctx, buf);
+        buf += code->get_size();
     }
 
     ASSERT(buf == ctx.buf + loc.offset + loc.size);
@@ -342,7 +342,7 @@ void CodeSection::apply_reloc(Context &ctx) {
     for (auto &code : ctx.codes) {
         u64 osec_content_file_offset =
             this->loc.offset + (this->loc.size - this->loc.content_size);
-        code.apply_reloc(ctx, osec_content_file_offset);
+        code->apply_reloc(ctx, osec_content_file_offset);
     }
 }
 

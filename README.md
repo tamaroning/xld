@@ -1,10 +1,21 @@
 # xld: Fast WASM linker
 
 ## TODO
-- output Data and DataCount section
-- reloc.DATA
-- stop if strong undefined syms are not resolved
+- [ ] Target Features Section
+- [x] Merging Global Sections
+- [x] Merging Function Sections
+- [ ] Merging Data Sections
+- [ ] Merging Custom Sections
+- [ ] COMDATs
+- [ ] Start Section
+- [ ] Import Sectio
+- [x] reloc.CODE
+- [ ] reloc.DATA
+- [ ] reloc custom
 
+> Relocation sections can only target code, data and custom sections.
+
+https://github.com/WebAssembly/tool-conventions/blob/main/Linking.md
 
 ## References
 
