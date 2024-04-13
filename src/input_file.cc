@@ -192,12 +192,6 @@ void ObjectFile::resolve_symbols(Context &ctx) {
                 sym->binding = Symbol::Binding::Global;
         }
     }
-
-    // imports and exports
-    // for (const WasmImport& import: this->imports) {
-    // Symbol *sym = get_symbol(ctx, import.name);
-    // sym->is_imported = true;
-    // }
 }
 
 } // namespace xld::wasm

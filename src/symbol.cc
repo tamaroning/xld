@@ -1,3 +1,4 @@
+#include "xld_private/symbol.h"
 #include "xld.h"
 
 namespace xld::wasm {
@@ -12,11 +13,13 @@ Symbol *get_symbol(Context &ctx, std::string_view name) {
 }
 
 bool should_export_symbol(Context &ctx, Symbol *sym) {
-    if (ctx.arg.export_all) {
-        return true;
-    }
+    if (sym->visibility == Symbol::Visibility::Hidden)
+        return false;
 
-    return sym->visibility != Symbol::Visibility::Hidden && sym->is_exported;
+    if (ctx.arg.export_all)
+        return true;
+
+    return sym->is_exported;
 }
 
 bool should_import_symbol(Context &ctx, Symbol *sym) {
