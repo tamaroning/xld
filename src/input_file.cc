@@ -38,7 +38,7 @@ void InputSection::apply_reloc(Context &ctx, u64 osec_content_file_offset) {
             std::string &name = this->obj->symbols[reloc.index].info.name;
             Symbol *sym = get_symbol(ctx, name);
             if (sym->is_undefined()) {
-                Error(ctx) << "Ignore relocation to undefined symbol" << name;
+                Error(ctx) << "Ignore relocation to undefined symbol: " << name;
                 continue;
             }
             // ASSERT(sym->is_defined());
@@ -56,7 +56,7 @@ void InputSection::apply_reloc(Context &ctx, u64 osec_content_file_offset) {
             std::string &name = this->obj->symbols[reloc.index].info.name;
             Symbol *sym = get_symbol(ctx, name);
             if (sym->is_undefined()) {
-                Error(ctx) << "Ignore relocation to undefined symbol" << name;
+                Error(ctx) << "Ignore relocation to undefined symbol: " << name;
                 continue;
             }
             // ASSERT(sym->is_defined());

@@ -37,8 +37,12 @@ void calculate_imports(Context &ctx) {
                     import.sig_index = new_sig_index;
                     ctx.import_functions.push_back(import);
                 } break;
+                case WASM_EXTERNAL_MEMORY: {
+                    // Discard memory imports
+                    // FIXME: correct?
+                } break;
                 default:
-                    Warn(ctx) << "TODO: import kind: " << import.kind;
+                    Warn(ctx) << "TODO: import kind: " << (u32)import.kind;
                     break;
                 }
             } else {
