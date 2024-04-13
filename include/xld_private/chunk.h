@@ -56,6 +56,17 @@ class TypeSection : public Chunk {
     void copy_buf(Context &ctx) override;
 };
 
+class ImportSection : public Chunk {
+  public:
+    ImportSection() {
+        name = "import";
+        sec_id = WASM_SEC_IMPORT;
+    }
+
+    u64 compute_section_size(Context &ctx) override;
+    void copy_buf(Context &ctx) override;
+};
+
 class FunctionSection : public Chunk {
   public:
     FunctionSection() {

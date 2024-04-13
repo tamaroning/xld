@@ -5,9 +5,11 @@ namespace xld::wasm {
 
 const std::string_view kDefaultMemoryName = "memory";
 
+void create_internal_file(Context &);
+
 void resolve_symbols(Context &);
 
-void create_internal_file(Context &);
+void calculate_imports(Context &);
 
 void create_synthetic_sections(Context &);
 

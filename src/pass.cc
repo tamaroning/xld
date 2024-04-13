@@ -3,8 +3,6 @@
 #include "common/system.h"
 #include "wasm/object.h"
 #include "xld.h"
-#include "xld_private/input_file.h"
-#include "xld_private/symbol.h"
 
 namespace xld::wasm {
 
@@ -13,15 +11,38 @@ void resolve_symbols(Context &ctx) {
     for (InputFile *file : ctx.files) {
         file->resolve_symbols(ctx);
     }
+}
 
+void calculate_imports(Context &ctx) {
     // resolve all undefined symbols
+    // cannot parallelize because of pushing to output imports
     for (InputFile *file : ctx.files) {
-        for (WasmSymbol &wsym : file->symbols) {
-            Symbol *sym = get_symbol(ctx, wsym.info.name);
-            if (wsym.is_undefined()) {
-                if (sym->is_undefined()) {
-                    Error(ctx) << "Undefined symbol: " << wsym.info.name;
+        if (file->kind != InputFile::Object)
+            return;
+
+        ObjectFile *obj = static_cast<ObjectFile *>(file);
+        for (auto import : obj->imports) {
+            Symbol *sym = get_symbol(ctx, import.field);
+            if (sym->is_defined()) {
+                continue;
+            }
+
+            if (allow_undefined_symbol(ctx, sym)) {
+                // if undefined symbols are allowed, import all of them
+                switch (import.kind) {
+                case WASM_EXTERNAL_FUNCTION: {
+                    u32 new_sig_index = ctx.signatures.size();
+                    ctx.signatures.push_back(OutputElem<WasmSignature>(
+                        obj->signatures[import.sig_index], obj));
+                    import.sig_index = new_sig_index;
+                    ctx.import_functions.push_back(import);
+                } break;
+                default:
+                    Warn(ctx) << "TODO: import kind: " << import.kind;
+                    break;
                 }
+            } else {
+                Error(ctx) << "Undefined symbol: " << import.field;
             }
         }
     }
@@ -86,6 +107,7 @@ void create_synthetic_sections(Context &ctx) {
 
     push(ctx.whdr = new OutputWhdr());
     push(ctx.type = new TypeSection());
+    push(ctx.import = new ImportSection());
     push(ctx.function = new FunctionSection());
     push(ctx.table = new TableSection());
     push(ctx.memory = new MemorySection());
@@ -112,7 +134,7 @@ void create_synthetic_sections(Context &ctx) {
         ObjectFile *obj = static_cast<ObjectFile *>(file);
         for (WasmGlobal g : obj->globals) {
             Symbol *sym = get_symbol(ctx, g.symbol_name);
-            sym->index = ctx.globals.size();
+            sym->index = ctx.import_globals.size() + ctx.globals.size();
             if (should_export_symbol(ctx, sym)) {
                 ctx.exports.emplace_back(WasmExport{
                     .name = g.symbol_name,
@@ -130,7 +152,7 @@ void create_synthetic_sections(Context &ctx) {
             ctx.signatures.emplace_back(OutputElem<WasmSignature>(
                 obj->signatures[original_sig_index], obj));
             Symbol *sym = get_symbol(ctx, f.symbol_name);
-            u32 index = ctx.functions.size();
+            u32 index = ctx.import_functions.size() + ctx.functions.size();
             sym->index = index;
             if (should_export_symbol(ctx, sym)) {
                 ctx.exports.emplace_back(WasmExport{

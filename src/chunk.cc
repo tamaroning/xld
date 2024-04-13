@@ -118,6 +118,37 @@ void TypeSection::copy_buf(Context &ctx) {
     }
 }
 
+u64 ImportSection::compute_section_size(Context &ctx) {
+    u64 size = 0;
+    u32 num_imports = ctx.import_functions.size();
+    size += get_varuint32_size(num_imports); // number of imports
+    for (auto &import : ctx.import_functions) {
+        // FIXME: Should not be "env"?
+        size += get_name_size("env");
+        size += get_name_size(import.field);
+        size += 1;                                    // kind
+        size += get_varuint32_size(import.sig_index); // type index
+    }
+    loc.content_size = size;
+    finalize_section_size_common(size);
+    return size;
+}
+
+void ImportSection::copy_buf(Context &ctx) {
+    u8 *buf = ctx.buf + loc.offset;
+    write_byte(buf, WASM_SEC_IMPORT);
+    write_varuint32(buf, loc.content_size);
+
+    u32 num_imports = ctx.import_functions.size();
+    write_varuint32(buf, num_imports);
+    for (auto &import : ctx.import_functions) {
+        write_name(buf, "env");
+        write_name(buf, import.field);
+        write_byte(buf, import.kind);
+        write_varuint32(buf, import.sig_index);
+    }
+}
+
 u64 FunctionSection::compute_section_size(Context &ctx) {
     u64 size = 0;
     size += get_varuint32_size(ctx.functions.size()); // number of functions
@@ -354,9 +385,11 @@ u64 NameSection::compute_section_size(Context &ctx) {
     size++; // function subsec kind
     function_subsec_size = 0;
     function_subsec_size += get_varuint32_size(ctx.functions.size());
+    u32 index = ctx.import_functions.size();
     for (auto &f : ctx.functions) {
-        function_subsec_size += get_varuint32_size(f.wdata.symbol_name.size());
+        function_subsec_size += get_varuint32_size(index);
         function_subsec_size += get_name_size(f.wdata.symbol_name);
+        index++;
     }
     size += get_varuint32_size(function_subsec_size);
     size += function_subsec_size;
@@ -365,8 +398,9 @@ u64 NameSection::compute_section_size(Context &ctx) {
     size++; // global subsec kind
     global_subsec_size = 0;
     global_subsec_size += get_varuint32_size(ctx.globals.size());
+    index = ctx.import_globals.size();
     for (auto &g : ctx.globals) {
-        global_subsec_size += get_varuint32_size(g.wdata.symbol_name.size());
+        global_subsec_size += get_varuint32_size(index);
         global_subsec_size += get_name_size(g.wdata.symbol_name);
     }
     size += get_varuint32_size(global_subsec_size);
@@ -394,7 +428,7 @@ void NameSection::copy_buf(Context &ctx) {
     write_varuint32(buf, function_subsec_size);
     // function subsec data
     write_varuint32(buf, ctx.functions.size());
-    int index = 0;
+    u32 index = ctx.import_functions.size();
     for (auto &f : ctx.functions) {
         write_varuint32(buf, index);
         write_name(buf, f.wdata.symbol_name);
@@ -407,7 +441,7 @@ void NameSection::copy_buf(Context &ctx) {
     write_varuint32(buf, global_subsec_size);
     // global subsec data
     write_varuint32(buf, ctx.globals.size());
-    index = 0;
+    index = ctx.import_globals.size();
     for (auto &g : ctx.globals) {
         write_varuint32(buf, index);
         write_name(buf, g.wdata.symbol_name);

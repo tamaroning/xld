@@ -12,6 +12,7 @@
 - [x] reloc.CODE
 - [ ] reloc.DATA
 - [ ] reloc custom
+- [ ] ignore local symbols
 
 > Relocation sections can only target code, data and custom sections.
 

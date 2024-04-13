@@ -45,4 +45,8 @@ Symbol *get_symbol(Context &ctx, std::string_view name);
 
 bool should_export_symbol(Context &ctx, Symbol *sym);
 
+bool should_import_symbol(Context &ctx, Symbol *sym);
+
+bool allow_undefined_symbol(Context &ctx, Symbol *sym);
+
 } // namespace xld::wasm

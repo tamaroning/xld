@@ -47,6 +47,7 @@ struct Context {
     std::vector<Chunk *> chunks;
     OutputWhdr *whdr = nullptr;
     TypeSection *type = nullptr;
+    ImportSection *import = nullptr;
     FunctionSection *function = nullptr;
     TableSection *table = nullptr;
     MemorySection *memory = nullptr;
@@ -61,12 +62,17 @@ struct Context {
     WasmLimits output_memory;
     std::vector<OutputElem<WasmGlobal>> globals;
     std::vector<WasmExport> exports;
+    // output imports
+    std::vector<WasmImport> import_functions;
+    std::vector<WasmImport> import_globals;
 
     std::vector<InputSection *> codes;
+    // TODO: DATA
 
     // Command-line arguments
     struct {
         bool export_all = false;
+        bool allow_undefined = false;
 
         bool color_diagnostics = true;
         std::string chroot;

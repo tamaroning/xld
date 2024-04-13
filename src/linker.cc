@@ -22,6 +22,8 @@ int linker_main(int argc, char **argv) {
         std::string arg = argv[i];
         if (arg == "--export-all") {
             ctx.arg.export_all = true;
+        } else if (arg == "--allow-undefined") {
+            ctx.arg.allow_undefined = true;
         } else {
             std::string path = path_clean(argv[i]);
             input_files.push_back(path);
@@ -81,6 +83,8 @@ int linker_main(int argc, char **argv) {
     // - LTO, which requires preliminary symbol resolution before running
     //   and a follow-up re-resolution after the LTO objects are emitted.
     resolve_symbols(ctx);
+
+    calculate_imports(ctx);
 
     ctx.checkpoint();
 
