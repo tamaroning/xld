@@ -64,7 +64,7 @@ void InputSection::apply_reloc(Context &ctx, u64 osec_content_file_offset) {
             encode_uleb128(index, reloc_loc, 5);
         } break;
         default:
-            Error(ctx) << "Unknown reloc type: "
+            Error(ctx) << "TODO: Unknown reloc type: "
                        << get_reloc_type_name(reloc.type);
         }
     }
@@ -177,7 +177,6 @@ void ObjectFile::resolve_symbols(Context &ctx) {
         bool prev_is_global_def =
             sym->is_defined() && sym->binding == Symbol::Binding::Global;
 
-        Debug(ctx) << "definiton: " << wsym.info.name;
         if (prev_is_global_def && is_global_def) {
             Error(ctx) << "duplicate strong symbol definition: "
                        << wsym.info.name << '\n';

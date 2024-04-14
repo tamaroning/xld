@@ -316,7 +316,7 @@ void ObjectFile::parse_linking_sec(Context &ctx, const u8 *&p, const u32 size) {
                 } break;
                 default: {
                     Error(ctx)
-                        << "unknown symbol type: " << (int)type << ", ignored";
+                        << "TODO: Unknown symbol type: " << (int)type << ", ignored";
                 }
                 }
                 WasmSymbol sym(info, global_type, table_type, signature);
@@ -347,7 +347,7 @@ void ObjectFile::parse_linking_sec(Context &ctx, const u8 *&p, const u32 size) {
             }
         } break;
         default: {
-            Error(ctx) << "unknown linking entry type: " << (int)type;
+            Error(ctx) << "TODO: Unknown linking entry type: " << (int)type;
             return;
         }
         }
