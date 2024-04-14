@@ -73,6 +73,7 @@ struct Context {
     struct {
         bool export_all = false;
         bool allow_undefined = false;
+        std::string output_file;
 
         bool color_diagnostics = true;
         std::string chroot;

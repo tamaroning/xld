@@ -24,6 +24,10 @@ int linker_main(int argc, char **argv) {
             ctx.arg.export_all = true;
         } else if (arg == "--allow-undefined") {
             ctx.arg.allow_undefined = true;
+        } else if (arg == "-o") {
+            if (i + 1 >= argc)
+                Fatal(ctx) << "no output file\n";
+            ctx.arg.output_file = argv[++i];
         } else {
             std::string path = path_clean(argv[i]);
             input_files.push_back(path);
@@ -134,7 +138,10 @@ int linker_main(int argc, char **argv) {
     u64 size = compute_section_sizes(ctx);
 
     // https://github.com/tamaroning/mold/blob/3df7c8e89c507865abe0fad4ff5355f4d328f78d/elf/main.cc#L637
-    auto output_file = OutputFile<Context>::open(ctx, "a.wasm", size, 0777);
+    std::string filename = "a.wasm";
+    if (ctx.arg.output_file != "")
+        filename = ctx.arg.output_file;
+    auto output_file = OutputFile<Context>::open(ctx, filename, size, 0777);
     ctx.buf = output_file->buf;
 
     copy_chunks(ctx);
