@@ -201,7 +201,6 @@ void create_synthetic_sections(Context &ctx) {
                 Symbol *sym = get_symbol(ctx, f.symbol_name);
                 u32 index = func_index_start + ctx.functions.size() +
                             ctx.import_functions.size();
-                // バグってる
                 sym->index = index;
                 ctx.functions.emplace_back(OutputElem<WasmFunction>(f, obj));
             }
