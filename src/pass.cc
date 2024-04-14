@@ -3,6 +3,7 @@
 #include "common/system.h"
 #include "wasm/object.h"
 #include "xld.h"
+#include "xld_private/symbol.h"
 
 namespace xld::wasm {
 
@@ -27,6 +28,20 @@ void calculate_imports(Context &ctx) {
                 continue;
             }
 
+            if (import.kind == WASM_EXTERNAL_MEMORY) {
+                continue;
+            }
+
+            if (import.kind == WASM_EXTERNAL_TABLE) {
+                if (import.field == "__indirect_function_table") {
+                    continue;
+                } else {
+                    Error(ctx) << "Imported table must have name "
+                                  "__indirect_function_table, but found "
+                               << import.field;
+                }
+            }
+
             if (allow_undefined_symbol(ctx, sym)) {
                 // if undefined symbols are allowed, import all of them
                 switch (import.kind) {
@@ -37,10 +52,10 @@ void calculate_imports(Context &ctx) {
                     import.sig_index = new_sig_index;
                     ctx.import_functions.push_back(import);
                 } break;
-                case WASM_EXTERNAL_MEMORY: {
-                    // Discard memory imports
-                    // FIXME: correct?
-                } break;
+                case WASM_EXTERNAL_MEMORY:
+                    continue;
+                case WASM_EXTERNAL_TABLE:
+                    continue;
                 default:
                     Warn(ctx) << "TODO: import kind: " << (u32)import.kind;
                     break;
@@ -89,15 +104,26 @@ void create_internal_file(Context &ctx) {
     static WasmGlobalType mutable_global_typeI64 = {ValType(WASM_TYPE_I64),
                                                     true};
 
+    // __stack_pointer
     {
         // https://github.com/llvm/llvm-project/blob/e6f63a942a45e3545332cd9a43982a69a4d5667b/lld/wasm/WriterUtils.cpp#L169
         WasmGlobal *g = new WasmGlobal{.type = mutable_global_type_i32,
                                        .init_expr = int32_const(65536 - 16),
                                        .symbol_name = "__stack_pointer"};
         add_synthetic_global_symbol(ctx, obj, g);
-        get_symbol(ctx, g->symbol_name)->is_alive = true;
-        get_symbol(ctx, g->symbol_name)->visibility =
-            Symbol::Visibility::Hidden;
+        Symbol *sym = get_symbol(ctx, g->symbol_name);
+        sym->is_alive = true;
+        sym->visibility = Symbol::Visibility::Hidden;
+    }
+
+    // __indirect_function_table
+    {
+        ctx.indirect_function_table = {
+            .elem_type = ValType(WASM_TYPE_FUNCREF),
+            .limits = WasmLimits{.flags = WASM_LIMITS_FLAG_HAS_MAX,
+                                 .minimum = 1,
+                                 .maximum = 1},
+        };
     }
 
     ctx.files.push_back(obj);

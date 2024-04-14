@@ -59,6 +59,7 @@ struct Context {
     // output elements
     std::vector<OutputElem<WasmSignature>> signatures;
     std::vector<OutputElem<WasmFunction>> functions;
+    WasmTableType indirect_function_table;
     WasmLimits output_memory;
     std::vector<OutputElem<WasmGlobal>> globals;
     std::vector<WasmExport> exports;

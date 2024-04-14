@@ -282,10 +282,28 @@ void GlobalSection::copy_buf(Context &ctx) {
 
 u64 TableSection::compute_section_size(Context &ctx) {
     u64 size = 0;
+    size += get_varuint32_size(1); // number of tables
+    size++;                        // reftype
+    size += get_limits_size(ctx.indirect_function_table.limits);
+    
+    loc.content_size = size;
+    finalize_section_size_common(size);
     return size;
 }
 
-void TableSection::copy_buf(Context &ctx) {}
+void TableSection::copy_buf(Context &ctx) {
+    u8 *buf = ctx.buf + loc.offset;
+    write_byte(buf, WASM_SEC_TABLE);
+    // content size
+    write_varuint32(buf, loc.content_size);
+
+    // Only indirect_function_table is supported
+    write_byte(buf, 1);                                     // number of tables
+    write_byte(buf, ctx.indirect_function_table.elem_type); // reftype
+    write_limits(buf, ctx.indirect_function_table.limits);
+
+    ASSERT(buf == ctx.buf + loc.offset + loc.size);
+}
 
 u64 MemorySection::compute_section_size(Context &ctx) {
     u64 size = 0;
