@@ -108,6 +108,7 @@ bool ObjectFile::is_defined_function(u32 index) {
 }
 
 WasmFunction &ObjectFile::get_defined_function(u32 index) {
+    ASSERT(index >= num_imported_functions && index < num_imported_functions + functions.size());
     return functions[index - num_imported_functions];
 }
 
@@ -117,6 +118,7 @@ bool ObjectFile::is_defined_global(u32 index) {
 }
 
 WasmGlobal &ObjectFile::get_defined_global(u32 index) {
+    ASSERT(index >= num_imported_globals && index < num_imported_globals + globals.size());
     return globals[index - num_imported_globals];
 }
 
@@ -126,6 +128,7 @@ bool ObjectFile::is_defined_memories(u32 index) {
 }
 
 WasmLimits &ObjectFile::get_defined_memories(u32 index) {
+    ASSERT(index >= num_imported_memories && index < num_imported_memories + memories.size());
     return memories[index - num_imported_memories];
 }
 

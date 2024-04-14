@@ -4,6 +4,7 @@
 #include "wasm/object.h"
 #include "xld.h"
 #include "xld_private/symbol.h"
+#include <unordered_map>
 
 namespace xld::wasm {
 
@@ -42,6 +43,7 @@ void calculate_imports(Context &ctx) {
                 }
             }
 
+            u32 func_index = 0;
             if (allow_undefined_symbol(ctx, sym)) {
                 // if undefined symbols are allowed, import all of them
                 switch (import.kind) {
@@ -51,6 +53,8 @@ void calculate_imports(Context &ctx) {
                         obj->signatures[import.sig_index], obj));
                     import.sig_index = new_sig_index;
                     ctx.import_functions.push_back(import);
+                    get_symbol(ctx, import.field)->index = func_index;
+                    func_index++;
                 } break;
                 case WASM_EXTERNAL_MEMORY:
                     continue;
@@ -159,40 +163,110 @@ void create_synthetic_sections(Context &ctx) {
         if (file->kind != InputFile::Object) {
             return;
         }
+        ObjectFile *obj = static_cast<ObjectFile *>(file);
+
+        u32 sig_insert_start = ctx.signatures.size();
+        u32 global_insert_start = ctx.globals.size();
+        u32 function_insert_start = ctx.functions.size();
+
+        // signatures
+        {
+            u32 sig_index_start = sig_insert_start;
+            for (WasmSignature sig : obj->signatures) {
+                ctx.signatures.emplace_back(
+                    OutputElem<WasmSignature>(sig, obj));
+            }
+        }
 
         // globals
-        ObjectFile *obj = static_cast<ObjectFile *>(file);
-        for (WasmGlobal g : obj->globals) {
-            Symbol *sym = get_symbol(ctx, g.symbol_name);
-            sym->index = ctx.import_globals.size() + ctx.globals.size();
-            if (should_export_symbol(ctx, sym)) {
-                ctx.exports.emplace_back(WasmExport{
-                    .name = g.symbol_name,
-                    .kind = WASM_EXTERNAL_GLOBAL,
-                    .index = static_cast<u32>(ctx.globals.size()),
-                });
+        {
+            u32 global_index_start =
+                global_insert_start + ctx.import_globals.size();
+            for (WasmGlobal g : obj->globals) {
+                Symbol *sym = get_symbol(ctx, g.symbol_name);
+                sym->index = global_index_start + ctx.globals.size() +
+                             ctx.import_globals.size();
+                ctx.globals.emplace_back(OutputElem<WasmGlobal>(g, obj));
             }
-            ctx.globals.emplace_back(OutputElem<WasmGlobal>(g, obj));
         }
         // functions
-        for (WasmFunction f : obj->functions) {
-            u32 original_sig_index = f.sig_index;
-            u32 sig_index = ctx.signatures.size();
-            f.sig_index = sig_index;
-            ctx.signatures.emplace_back(OutputElem<WasmSignature>(
-                obj->signatures[original_sig_index], obj));
-            Symbol *sym = get_symbol(ctx, f.symbol_name);
-            u32 index = ctx.import_functions.size() + ctx.functions.size();
-            sym->index = index;
-            if (should_export_symbol(ctx, sym)) {
-                ctx.exports.emplace_back(WasmExport{
-                    .name = f.export_name.value_or(f.symbol_name),
-                    .kind = WASM_EXTERNAL_FUNCTION,
-                    .index = index,
-                });
+        {
+            u32 sig_index_start = function_insert_start;
+            u32 func_index_start =
+                ctx.functions.size() + ctx.import_functions.size();
+            for (WasmFunction f : obj->functions) {
+                u32 original_sig_index = f.sig_index;
+                u32 sig_index = sig_index_start + f.sig_index;
+                f.sig_index = sig_index;
+                Symbol *sym = get_symbol(ctx, f.symbol_name);
+                u32 index = func_index_start + ctx.functions.size() +
+                            ctx.import_functions.size();
+                // バグってる
+                sym->index = index;
+                ctx.functions.emplace_back(OutputElem<WasmFunction>(f, obj));
             }
-            ctx.functions.emplace_back(OutputElem<WasmFunction>(f, obj));
         }
+
+        for (WasmSymbol &wsym : obj->symbols) {
+            if (wsym.is_binding_local())
+                continue;
+
+            u32 index;
+            std::string export_name = wsym.info.name;
+            {
+                if (wsym.is_defined()) {
+                    if (wsym.is_type_global()) {
+                        WasmGlobal &g = obj->get_defined_global(
+                            wsym.info.value.element_index);
+                        index = global_insert_start +
+                                ctx.import_globals.size() +
+                                (wsym.info.value.element_index -
+                                 obj->num_imported_globals);
+                    } else if (wsym.is_type_function()) {
+                        WasmFunction &f = obj->get_defined_function(
+                            wsym.info.value.element_index);
+                        index = function_insert_start +
+                                ctx.import_functions.size() +
+                                (wsym.info.value.element_index -
+                                 obj->num_imported_functions);
+                        if (f.export_name.has_value())
+                            export_name = f.export_name.value();
+                    }
+                } else {
+                    index = get_symbol(ctx, wsym.info.name)->index;
+                }
+            }
+
+            // FIXME: correct?
+            if (wsym.is_undefined())
+                continue;
+
+            Symbol *sym = get_symbol(ctx, wsym.info.name);
+            sym->index = index;
+
+            if (wsym.is_type_global()) {
+                Symbol *sym = get_symbol(ctx, wsym.info.name);
+                if (!wsym.is_binding_local() &&
+                    should_export_symbol(ctx, sym)) {
+                    ctx.exports.emplace_back(WasmExport{
+                        .name = export_name,
+                        .kind = WASM_EXTERNAL_GLOBAL,
+                        .index = index,
+                    });
+                }
+            } else if (wsym.is_type_function()) {
+                Symbol *sym = get_symbol(ctx, wsym.info.name);
+                if (!wsym.is_binding_local() &&
+                    should_export_symbol(ctx, sym)) {
+                    ctx.exports.emplace_back(WasmExport{
+                        .name = export_name,
+                        .kind = WASM_EXTERNAL_FUNCTION,
+                        .index = index,
+                    });
+                }
+            }
+        }
+
         // push the code section to keep the same order as the function
         // section
         if (obj->code.has_value())

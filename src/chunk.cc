@@ -285,7 +285,7 @@ u64 TableSection::compute_section_size(Context &ctx) {
     size += get_varuint32_size(1); // number of tables
     size++;                        // reftype
     size += get_limits_size(ctx.indirect_function_table.limits);
-    
+
     loc.content_size = size;
     finalize_section_size_common(size);
     return size;
@@ -395,6 +395,7 @@ void CodeSection::apply_reloc(Context &ctx) {
     }
 }
 
+// TODO: names should not be linking names but debug names
 u64 NameSection::compute_section_size(Context &ctx) {
     u64 size = 0;
     size += get_name_size("name"); // number of names
@@ -438,7 +439,8 @@ void NameSection::copy_buf(Context &ctx) {
     write_name(buf, "name");
 
     // NOTE: We must write subsections in the order of function, global, etc.
-    // https://github.com/WebAssembly/design/blob/main/BinaryEncoding.md#name-section
+    //
+    https://github.com/WebAssembly/design/blob/main/BinaryEncoding.md#name-section
 
     // function subsec kind
     write_byte(buf, WASM_NAMES_FUNCTION);

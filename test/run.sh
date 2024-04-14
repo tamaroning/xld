@@ -10,5 +10,5 @@ for i in $(ls *.sh); do
         echo "Failed $i"
         exit 1
     fi
-    rm -rf tmp
+    rm -rf tmp/
 done
