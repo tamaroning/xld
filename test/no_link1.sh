@@ -13,4 +13,4 @@ EOF
 
 $XLD $t/a.o --export-all --allow-undefined -o $t/a.wasm
 
-node main.js $t/a.wasm | grep -q "41"
+node main.js $t/a.wasm | grep -q "42"
