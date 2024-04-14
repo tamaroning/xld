@@ -315,8 +315,8 @@ void ObjectFile::parse_linking_sec(Context &ctx, const u8 *&p, const u32 size) {
                         {.data_ref = {segment_index, offset, size}}};
                 } break;
                 default: {
-                    Error(ctx)
-                        << "TODO: Unknown symbol type: " << (int)type << ", ignored";
+                    Error(ctx) << "TODO: Unknown symbol type: " << (int)type
+                               << ", ignored";
                 }
                 }
                 WasmSymbol sym(info, global_type, table_type, signature);
@@ -605,6 +605,11 @@ void ObjectFile::parse(Context &ctx) {
             };
             this->signatures = parse_vec_varlen(p, f);
         } break;
+        case WASM_SEC_TABLE: {
+            // skip
+            Warn(ctx) << "Ignored table section in " << this->filename;
+            p = content_beg + content_size;
+        } break;
         case WASM_SEC_IMPORT: {
             std::function<WasmImport(const u8 *&)> f = [&](const u8 *&data) {
                 std::string module = parse_name(data);
@@ -814,6 +819,7 @@ void ObjectFile::parse(Context &ctx) {
                 };
             this->codes = parse_vec_varlen(p, f);
             */
+            // skip
             p = content_beg + content_size;
         } break;
         case WASM_SEC_DATACOUNT: {

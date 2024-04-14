@@ -75,6 +75,7 @@ struct Context {
         bool export_all = false;
         bool allow_undefined = false;
         std::string output_file;
+        bool dump_input = false;
 
         bool color_diagnostics = true;
         std::string chroot;

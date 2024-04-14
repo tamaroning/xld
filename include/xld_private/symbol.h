@@ -8,6 +8,7 @@ namespace xld::wasm {
 // forward-decl
 class InputFile;
 
+// Global or weak symbol. This class is not instanciated for local symbols.
 class Symbol {
   public:
     Symbol(std::string_view name, InputFile *file) : name(name), file(file) {}
@@ -33,7 +34,7 @@ class Symbol {
     enum class Binding {
         Weak,
         Global,
-    } binding = Binding::Weak;
+    } binding = Binding::Global;
 
     enum class Visibility {
         Default,

@@ -156,7 +156,9 @@ bool ObjectFile::is_valid_section_symbol(u32 Index) {
 void ObjectFile::resolve_symbols(Context &ctx) {
     // Register symbols
     for (WasmSymbol &wsym : this->symbols) {
-        // we care about global or weak symbols
+        if (wsym.is_binding_local())
+            continue;
+        // we only care about global or weak symbols
         if (!wsym.is_binding_global() && !wsym.is_binding_weak())
             continue;
         if (wsym.is_undefined())

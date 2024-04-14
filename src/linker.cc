@@ -28,6 +28,8 @@ int linker_main(int argc, char **argv) {
             if (i + 1 >= argc)
                 Fatal(ctx) << "no output file\n";
             ctx.arg.output_file = argv[++i];
+        } else if (arg == "--dump-input") {
+            ctx.arg.dump_input = true;
         } else {
             std::string path = path_clean(argv[i]);
             input_files.push_back(path);
@@ -69,7 +71,9 @@ int linker_main(int argc, char **argv) {
     });
 
     for (ObjectFile *obj : objs) {
-        obj->dump(ctx);
+        if (ctx.arg.dump_input)
+            obj->dump(ctx);
+        
         ctx.files.push_back(obj);
     }
 
