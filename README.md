@@ -1,4 +1,7 @@
-# xld: Fast WASM linker
+# xld: Fast WebAssembly linker
+
+xld is a linker for WebAssembly object files.
+It takes advantage of the parallelism provided by multi-threading for fast linking. Currently, the goal is to support compatibility with the LLVM toolchain.
 
 ## TODO
 - [ ] Target Features Section
@@ -8,7 +11,7 @@
 - [ ] Merging Custom Sections
 - [ ] COMDATs
 - [ ] Start Section
-- [ ] Import Sectio
+- [x] Import Section
 - [x] reloc.CODE
 - [ ] reloc.DATA
 - [ ] reloc custom
