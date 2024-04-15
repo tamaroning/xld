@@ -64,15 +64,15 @@ struct Context {
     WasmExport output_memory_export;
 
     // output imports
-    tbb::concurrent_set<Symbol *> import_functions_;
-    tbb::concurrent_set<Symbol *> import_globals_;
-    tbb::concurrent_vector<Symbol *> functions_;
-    tbb::concurrent_vector<Symbol *> globals_;
+    tbb::concurrent_set<Symbol *> import_functions;
+    tbb::concurrent_set<Symbol *> import_globals;
+    tbb::concurrent_vector<Symbol *> functions;
+    tbb::concurrent_vector<Symbol *> globals;
 
     tbb::concurrent_vector<Symbol *> export_functions;
     tbb::concurrent_vector<Symbol *> export_globals;
 
-    std::vector<WasmSignature> signatures_;
+    std::vector<WasmSignature> signatures;
 
     tbb::concurrent_vector<InputSection *> codes;
     // TODO: DATA

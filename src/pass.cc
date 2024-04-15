@@ -37,9 +37,9 @@ void calculate_imports(Context &ctx) {
                 continue;
 
             if (wsym.is_type_function()) {
-                ctx.import_functions_.insert(sym);
+                ctx.import_functions.insert(sym);
             } else if (wsym.is_type_global()) {
-                ctx.import_globals_.insert(sym);
+                ctx.import_globals.insert(sym);
             } else {
                 Error(ctx) << "TODO: import symbol type: " << wsym.info.kind;
             }
@@ -155,13 +155,14 @@ void create_synthetic_sections(Context &ctx) {
 
             Symbol *sym = get_symbol(ctx, wsym.info.name);
             if (wsym.is_type_function()) {
-                sym->index = ctx.functions_.size();
-                ctx.functions_.push_back(sym);
+                sym->index =
+                    ctx.functions.size() + ctx.import_functions.size();
+                ctx.functions.push_back(sym);
                 if (should_export_symbol(ctx, sym))
                     ctx.export_functions.push_back(sym);
             } else if (wsym.is_type_global()) {
-                sym->index = ctx.globals_.size();
-                ctx.globals_.push_back(sym);
+                sym->index = ctx.globals.size() + ctx.import_globals.size();
+                ctx.globals.push_back(sym);
                 if (should_export_symbol(ctx, sym))
                     ctx.export_globals.push_back(sym);
             }
@@ -174,17 +175,17 @@ void create_synthetic_sections(Context &ctx) {
 }
 
 void calculate_types(Context &ctx) {
-    for (Symbol *sym : ctx.import_functions_) {
+    for (Symbol *sym : ctx.import_functions) {
         WasmFunction &func = sym->file->get_defined_function(sym->elem_index);
         WasmSignature &sig = sym->file->signatures[func.sig_index];
-        sym->sig_index = ctx.signatures_.size();
-        ctx.signatures_.push_back(sig);
+        sym->sig_index = ctx.signatures.size();
+        ctx.signatures.push_back(sig);
     }
-    for (Symbol *sym : ctx.functions_) {
+    for (Symbol *sym : ctx.functions) {
         WasmFunction &func = sym->file->get_defined_function(sym->elem_index);
         WasmSignature &sig = sym->file->signatures[func.sig_index];
-        sym->sig_index = ctx.signatures_.size();
-        ctx.signatures_.push_back(sig);
+        sym->sig_index = ctx.signatures.size();
+        ctx.signatures.push_back(sig);
     }
 }
 
