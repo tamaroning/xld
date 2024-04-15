@@ -108,7 +108,8 @@ bool ObjectFile::is_defined_function(u32 index) {
 }
 
 WasmFunction &ObjectFile::get_defined_function(u32 index) {
-    ASSERT(index >= num_imported_functions && index < num_imported_functions + functions.size());
+    ASSERT(index >= num_imported_functions &&
+           index < num_imported_functions + functions.size());
     return functions[index - num_imported_functions];
 }
 
@@ -118,7 +119,8 @@ bool ObjectFile::is_defined_global(u32 index) {
 }
 
 WasmGlobal &ObjectFile::get_defined_global(u32 index) {
-    ASSERT(index >= num_imported_globals && index < num_imported_globals + globals.size());
+    ASSERT(index >= num_imported_globals &&
+           index < num_imported_globals + globals.size());
     return globals[index - num_imported_globals];
 }
 
@@ -128,7 +130,8 @@ bool ObjectFile::is_defined_memories(u32 index) {
 }
 
 WasmLimits &ObjectFile::get_defined_memories(u32 index) {
-    ASSERT(index >= num_imported_memories && index < num_imported_memories + memories.size());
+    ASSERT(index >= num_imported_memories &&
+           index < num_imported_memories + memories.size());
     return memories[index - num_imported_memories];
 }
 
@@ -190,6 +193,7 @@ void ObjectFile::resolve_symbols(Context &ctx) {
         bool should_override = is_global_def;
         if (should_override) {
             sym->file = this;
+            // sym->def_index = wsym.info.value.element_index;
             if (wsym.is_binding_weak())
                 sym->binding = Symbol::Binding::Weak;
             else if (wsym.is_binding_global())

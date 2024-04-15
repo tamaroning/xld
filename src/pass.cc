@@ -49,8 +49,7 @@ void calculate_imports(Context &ctx) {
                 switch (import.kind) {
                 case WASM_EXTERNAL_FUNCTION: {
                     u32 new_sig_index = ctx.signatures.size();
-                    ctx.signatures.push_back(OutputElem<WasmSignature>(
-                        obj->signatures[import.sig_index], obj));
+                    ctx.signatures.push_back(obj->signatures[import.sig_index]);
                     import.sig_index = new_sig_index;
                     ctx.import_functions.push_back(import);
                     get_symbol(ctx, import.field)->index = func_index;
@@ -152,11 +151,12 @@ void create_synthetic_sections(Context &ctx) {
 
     {
         ctx.output_memory = WasmLimits{.flags = 0, .minimum = 1, .maximum = 0};
-        ctx.exports.emplace_back(WasmExport{
-            .name = std::string(kDefaultMemoryName),
-            .kind = WASM_EXTERNAL_MEMORY,
-            .index = 0,
-        });
+        ctx.exports.insert({std::string(kDefaultMemoryName),
+                            WasmExport{
+                                .name = std::string(kDefaultMemoryName),
+                                .kind = WASM_EXTERNAL_MEMORY,
+                                .index = 0,
+                            }});
     }
 
     for (InputFile *file : ctx.files) {
@@ -173,8 +173,7 @@ void create_synthetic_sections(Context &ctx) {
         {
             u32 sig_index_start = sig_insert_start;
             for (WasmSignature sig : obj->signatures) {
-                ctx.signatures.emplace_back(
-                    OutputElem<WasmSignature>(sig, obj));
+                ctx.signatures.emplace_back(sig);
             }
         }
 
@@ -186,7 +185,7 @@ void create_synthetic_sections(Context &ctx) {
                 Symbol *sym = get_symbol(ctx, g.symbol_name);
                 sym->index = global_index_start + ctx.globals.size() +
                              ctx.import_globals.size();
-                ctx.globals.emplace_back(OutputElem<WasmGlobal>(g, obj));
+                ctx.globals.emplace_back(g);
             }
         }
         // functions
@@ -202,7 +201,7 @@ void create_synthetic_sections(Context &ctx) {
                 u32 index = func_index_start + ctx.functions.size() +
                             ctx.import_functions.size();
                 sym->index = index;
-                ctx.functions.emplace_back(OutputElem<WasmFunction>(f, obj));
+                ctx.functions.emplace_back(f);
             }
         }
 
@@ -247,21 +246,23 @@ void create_synthetic_sections(Context &ctx) {
                 Symbol *sym = get_symbol(ctx, wsym.info.name);
                 if (!wsym.is_binding_local() &&
                     should_export_symbol(ctx, sym)) {
-                    ctx.exports.emplace_back(WasmExport{
-                        .name = export_name,
-                        .kind = WASM_EXTERNAL_GLOBAL,
-                        .index = index,
-                    });
+                    ctx.exports.insert(
+                        {export_name, WasmExport{
+                                          .name = export_name,
+                                          .kind = WASM_EXTERNAL_GLOBAL,
+                                          .index = index,
+                                      }});
                 }
             } else if (wsym.is_type_function()) {
                 Symbol *sym = get_symbol(ctx, wsym.info.name);
                 if (!wsym.is_binding_local() &&
                     should_export_symbol(ctx, sym)) {
-                    ctx.exports.emplace_back(WasmExport{
-                        .name = export_name,
-                        .kind = WASM_EXTERNAL_FUNCTION,
-                        .index = index,
-                    });
+                    ctx.exports.insert(
+                        {export_name, WasmExport{
+                                          .name = export_name,
+                                          .kind = WASM_EXTERNAL_FUNCTION,
+                                          .index = index,
+                                      }});
                 }
             }
         }

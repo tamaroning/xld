@@ -57,12 +57,12 @@ struct Context {
     NameSection *name = nullptr;
 
     // output elements
-    std::vector<OutputElem<WasmSignature>> signatures;
-    std::vector<OutputElem<WasmFunction>> functions;
+    std::vector<WasmSignature> signatures;
+    std::vector<WasmFunction> functions;
     WasmTableType indirect_function_table;
     WasmLimits output_memory;
-    std::vector<OutputElem<WasmGlobal>> globals;
-    std::vector<WasmExport> exports;
+    std::vector<WasmGlobal> globals;
+    std::unordered_map<std::string, WasmExport> exports;
     // output imports
     std::vector<WasmImport> import_functions;
     std::vector<WasmImport> import_globals;

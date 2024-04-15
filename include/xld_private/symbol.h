@@ -19,6 +19,8 @@ class Symbol {
     // A symbol is owned (defined) by a file. If multiple files define the
     // symbol, the strongest binding is chosen.
     InputFile *file = nullptr;
+    // Element index in the file
+    //u32 def_index = 0;
 
     bool is_defined() const { return file != nullptr; }
     bool is_undefined() const { return file == nullptr; }
@@ -29,6 +31,8 @@ class Symbol {
     bool is_exported = false;
     bool is_alive = false;
 
+    // output index
+    // TODO: remove
     u32 index = 0;
 
     enum class Binding {
@@ -40,6 +44,12 @@ class Symbol {
         Default,
         Hidden,
     } visibility = Visibility::Default;
+
+    enum class Tag {
+        Function,
+        Global,
+        Unknown,
+    } tag = Tag::Unknown;
 };
 
 Symbol *get_symbol(Context &ctx, std::string_view name);
