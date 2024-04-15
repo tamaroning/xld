@@ -7,7 +7,7 @@ int main() {
 }
 EOF
 
-$XLD $t/a.o --export-all --allow-undefined -o $t/a.wasm
+$XLD $t/a.o --export-all -o $t/a.wasm
 
 wasm-objdump -x $t/a.wasm | grep -q "table\[0\] type=funcref initial=1 max=1"
 wasm-objdump -x $t/a.wasm | grep -q "memory\[0\] pages"

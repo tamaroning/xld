@@ -155,8 +155,7 @@ void create_synthetic_sections(Context &ctx) {
 
             Symbol *sym = get_symbol(ctx, wsym.info.name);
             if (wsym.is_type_function()) {
-                sym->index =
-                    ctx.functions.size() + ctx.import_functions.size();
+                sym->index = ctx.functions.size() + ctx.import_functions.size();
                 ctx.functions.push_back(sym);
                 if (should_export_symbol(ctx, sym))
                     ctx.export_functions.push_back(sym);
@@ -176,16 +175,16 @@ void create_synthetic_sections(Context &ctx) {
 
 void calculate_types(Context &ctx) {
     for (Symbol *sym : ctx.import_functions) {
-        WasmFunction &func = sym->file->get_defined_function(sym->elem_index);
-        WasmSignature &sig = sym->file->signatures[func.sig_index];
+        ASSERT(sym->wsym.has_value());
+        const WasmSignature *sig = sym->wsym.value().signature;
         sym->sig_index = ctx.signatures.size();
-        ctx.signatures.push_back(sig);
+        ctx.signatures.push_back(*sig);
     }
     for (Symbol *sym : ctx.functions) {
-        WasmFunction &func = sym->file->get_defined_function(sym->elem_index);
-        WasmSignature &sig = sym->file->signatures[func.sig_index];
+        ASSERT(sym->wsym.has_value());
+        const WasmSignature *sig = sym->wsym.value().signature;
         sym->sig_index = ctx.signatures.size();
-        ctx.signatures.push_back(sig);
+        ctx.signatures.push_back(*sig);
     }
 }
 

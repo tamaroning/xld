@@ -13,7 +13,7 @@ class WasmSymbol {
                const wasm::WasmSignature *signature)
         : info(info), global_type(global_type), table_type(table_type),
           signature(signature) {
-        assert(!signature ||
+        ASSERT(!signature ||
                signature->kind != wasm::WasmSignature::Placeholder);
     }
 

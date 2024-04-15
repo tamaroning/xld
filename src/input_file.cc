@@ -111,7 +111,7 @@ bool ObjectFile::is_defined_global(u32 index) {
            index < num_imported_globals + globals.size();
 }
 
-WasmGlobal& ObjectFile::get_defined_global(u32 index) {
+WasmGlobal &ObjectFile::get_defined_global(u32 index) {
     ASSERT(index >= num_imported_globals &&
            index < num_imported_globals + globals.size());
     return globals[index - num_imported_globals];
@@ -153,6 +153,20 @@ bool ObjectFile::is_valid_section_symbol(u32 Index) {
 }
 
 void ObjectFile::resolve_symbols(Context &ctx) {
+    // First, collect all non-local WasmSymbols
+    for (WasmSymbol &wsym : this->symbols) {
+        if (wsym.is_binding_local())
+            continue;
+        // we only care about global or weak symbols
+        if (!wsym.is_binding_global() && !wsym.is_binding_weak())
+            continue;
+        Symbol *sym = get_symbol(ctx, wsym.info.name);
+        if (sym->wsym.has_value())
+            continue;
+        sym->wsym = wsym;
+    
+    }
+
     // Register symbols
     for (WasmSymbol &wsym : this->symbols) {
         if (wsym.is_binding_local())
@@ -167,8 +181,6 @@ void ObjectFile::resolve_symbols(Context &ctx) {
 
         if (wsym.is_exported())
             sym->is_exported = true;
-
-        // TODO: clean
 
         bool is_weak_def = wsym.is_defined() && wsym.is_binding_weak();
         bool is_global_def = wsym.is_defined() && wsym.is_binding_global();
@@ -186,6 +198,7 @@ void ObjectFile::resolve_symbols(Context &ctx) {
         bool should_override = is_global_def;
         if (should_override) {
             sym->file = this;
+            sym->wsym = wsym;
             sym->elem_index = wsym.info.value.element_index;
             if (wsym.is_binding_weak())
                 sym->binding = Symbol::Binding::Weak;

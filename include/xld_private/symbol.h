@@ -19,8 +19,9 @@ class Symbol {
     // A symbol is owned (defined) by a file. If multiple files define the
     // symbol, the strongest binding is chosen.
     ObjectFile *file = nullptr;
-    // Element index in the file
     u32 elem_index = 0;
+
+    std::optional<WasmSymbol> wsym = std::nullopt;
 
     bool is_defined() const { return file != nullptr; }
     bool is_undefined() const { return file == nullptr; }
@@ -45,14 +46,6 @@ class Symbol {
         Default,
         Hidden,
     } visibility = Visibility::Default;
-
-    /*
-    enum class Tag {
-        Function,
-        Global,
-        Unknown,
-    } tag = Tag::Unknown;
-    */
 };
 
 Symbol *get_symbol(Context &ctx, std::string_view name);

@@ -214,6 +214,7 @@ void ObjectFile::parse_linking_sec(Context &ctx, const u8 *&p, const u32 size) {
 
                         WasmFunction &func = get_defined_function(index);
                         symbol_name = parse_name(p);
+                        signature = &signatures[func.sig_index];
                         if (func.symbol_name.empty())
                             func.symbol_name = symbol_name;
                     } else {
