@@ -155,10 +155,12 @@ void create_synthetic_sections(Context &ctx) {
 
             Symbol *sym = get_symbol(ctx, wsym.info.name);
             if (wsym.is_type_function()) {
+                sym->index = ctx.functions_.size();
                 ctx.functions_.push_back(sym);
                 if (should_export_symbol(ctx, sym))
                     ctx.export_functions.push_back(sym);
             } else if (wsym.is_type_global()) {
+                sym->index = ctx.globals_.size();
                 ctx.globals_.push_back(sym);
                 if (should_export_symbol(ctx, sym))
                     ctx.export_globals.push_back(sym);
