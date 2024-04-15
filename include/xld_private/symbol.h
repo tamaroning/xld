@@ -11,16 +11,16 @@ class InputFile;
 // Global or weak symbol. This class is not instanciated for local symbols.
 class Symbol {
   public:
-    Symbol(std::string_view name, InputFile *file) : name(name), file(file) {}
+    Symbol(std::string_view name, ObjectFile *file) : name(name), file(file) {}
 
     // The name of the symbol.
     std::string_view name;
 
     // A symbol is owned (defined) by a file. If multiple files define the
     // symbol, the strongest binding is chosen.
-    InputFile *file = nullptr;
+    ObjectFile *file = nullptr;
     // Element index in the file
-    //u32 def_index = 0;
+    u32 elem_index = 0;
 
     bool is_defined() const { return file != nullptr; }
     bool is_undefined() const { return file == nullptr; }
@@ -32,8 +32,9 @@ class Symbol {
     bool is_alive = false;
 
     // output index
-    // TODO: remove
     u32 index = 0;
+    // output sig_index
+    u32 sig_index = 0;
 
     enum class Binding {
         Weak,
@@ -45,11 +46,13 @@ class Symbol {
         Hidden,
     } visibility = Visibility::Default;
 
+    /*
     enum class Tag {
         Function,
         Global,
         Unknown,
     } tag = Tag::Unknown;
+    */
 };
 
 Symbol *get_symbol(Context &ctx, std::string_view name);

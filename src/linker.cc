@@ -73,7 +73,7 @@ int linker_main(int argc, char **argv) {
     for (ObjectFile *obj : objs) {
         if (ctx.arg.dump_input)
             obj->dump(ctx);
-        
+
         ctx.files.push_back(obj);
     }
 
@@ -100,6 +100,8 @@ int linker_main(int argc, char **argv) {
 
     // Create linker-synthesized sections
     create_synthetic_sections(ctx);
+
+    calculate_types(ctx);
 
     // Make sure that there's no duplicate symbol
     // if (!ctx.arg.allow_multiple_definition)
@@ -152,6 +154,8 @@ int linker_main(int argc, char **argv) {
     apply_reloc(ctx);
 
     output_file->close(ctx);
+
+    Debug(ctx) << "Write to " << filename;
 
     return 0;
 }

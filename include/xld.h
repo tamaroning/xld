@@ -15,6 +15,8 @@ const u32 kStackSize = kPageSize;
 const u32 kStackAlign = 16;
 const u32 kHeapAlign = 16;
 
+const std::string_view kDefaultMemoryName = "memory";
+
 int linker_main(int argc, char **argv);
 
 } // namespace xld::wasm

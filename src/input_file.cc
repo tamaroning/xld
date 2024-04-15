@@ -44,13 +44,6 @@ void InputSection::apply_reloc(Context &ctx, u64 osec_content_file_offset) {
             // ASSERT(sym->is_defined());
             u32 index = sym->index;
             encode_uleb128(index, reloc_loc, 5);
-            /*
-            TODO: remove
-            Debug(ctx) << name << " is defined in "
-                       << ((sym->file == nullptr) ? "null"
-                                                  : sym->file->filename)
-                       << " " << index << "th";
-                       */
         } break;
         case R_WASM_GLOBAL_INDEX_LEB: {
             std::string &name = this->obj->symbols[reloc.index].info.name;
@@ -193,7 +186,7 @@ void ObjectFile::resolve_symbols(Context &ctx) {
         bool should_override = is_global_def;
         if (should_override) {
             sym->file = this;
-            // sym->def_index = wsym.info.value.element_index;
+            sym->elem_index = wsym.info.value.element_index;
             if (wsym.is_binding_weak())
                 sym->binding = Symbol::Binding::Weak;
             else if (wsym.is_binding_global())

@@ -1,9 +1,8 @@
 #pragma once
 #include "xld.h"
+#include "xld_private/chunk.h"
 
 namespace xld::wasm {
-
-const std::string_view kDefaultMemoryName = "memory";
 
 void create_internal_file(Context &);
 
@@ -12,6 +11,8 @@ void resolve_symbols(Context &);
 void calculate_imports(Context &);
 
 void create_synthetic_sections(Context &);
+
+void calculate_types(Context &);
 
 u64 compute_section_sizes(Context &);
 

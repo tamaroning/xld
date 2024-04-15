@@ -3,6 +3,7 @@
 #include "common/common.h"
 #include "common/mmap.h"
 #include "common/system.h"
+#include "oneapi/tbb/concurrent_set.h"
 #include "output_elem.h"
 #include "wasm/object.h"
 #include "xld_private/chunk.h"
@@ -56,18 +57,24 @@ struct Context {
     ExportSection *export_ = nullptr;
     NameSection *name = nullptr;
 
-    // output elements
-    std::vector<WasmSignature> signatures;
-    std::vector<WasmFunction> functions;
+    // Linker synthesized symbols which needs special handling.
+    // Other linker synthesized symbols reside in the internal object file.
     WasmTableType indirect_function_table;
     WasmLimits output_memory;
-    std::vector<WasmGlobal> globals;
-    std::unordered_map<std::string, WasmExport> exports;
-    // output imports
-    std::vector<WasmImport> import_functions;
-    std::vector<WasmImport> import_globals;
+    WasmExport output_memory_export;
 
-    std::vector<InputSection *> codes;
+    // output imports
+    tbb::concurrent_set<Symbol *> import_functions_;
+    tbb::concurrent_set<Symbol *> import_globals_;
+    tbb::concurrent_vector<Symbol *> functions_;
+    tbb::concurrent_vector<Symbol *> globals_;
+
+    tbb::concurrent_vector<Symbol *> export_functions;
+    tbb::concurrent_vector<Symbol *> export_globals;
+
+    std::vector<WasmSignature> signatures_;
+
+    tbb::concurrent_vector<InputSection *> codes;
     // TODO: DATA
 
     // Command-line arguments
