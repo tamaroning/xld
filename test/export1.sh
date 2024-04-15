@@ -17,7 +17,7 @@ int main() {
 }
 EOF
 
-$XLD $t/a.o --export-all --allow-undefined -o $t/a.wasm
+$XLD $t/a.o --export-all -o $t/a.wasm
 
 wasm-objdump -x $t/a.wasm | grep -q "<bar> -> \"export_bar\""
 wasm-objdump -x $t/a.wasm | grep -q "<foo> -> \"export_foo\""

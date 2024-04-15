@@ -175,13 +175,13 @@ void create_synthetic_sections(Context &ctx) {
 
 void calculate_types(Context &ctx) {
     for (Symbol *sym : ctx.import_functions_) {
-        WasmFunction &func = sym->file->functions[sym->elem_index];
+        WasmFunction &func = sym->file->get_defined_function(sym->elem_index);
         WasmSignature &sig = sym->file->signatures[func.sig_index];
         sym->sig_index = ctx.signatures_.size();
         ctx.signatures_.push_back(sig);
     }
     for (Symbol *sym : ctx.functions_) {
-        WasmFunction &func = sym->file->functions[sym->elem_index];
+        WasmFunction &func = sym->file->get_defined_function(sym->elem_index);
         WasmSignature &sig = sym->file->signatures[func.sig_index];
         sym->sig_index = ctx.signatures_.size();
         ctx.signatures_.push_back(sig);

@@ -111,7 +111,7 @@ bool ObjectFile::is_defined_global(u32 index) {
            index < num_imported_globals + globals.size();
 }
 
-WasmGlobal &ObjectFile::get_defined_global(u32 index) {
+WasmGlobal& ObjectFile::get_defined_global(u32 index) {
     ASSERT(index >= num_imported_globals &&
            index < num_imported_globals + globals.size());
     return globals[index - num_imported_globals];
