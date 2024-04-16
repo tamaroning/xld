@@ -16,10 +16,12 @@ class Symbol {
     // The name of the symbol.
     std::string_view name;
 
-    // A symbol is owned (defined) by a file. If multiple files define the
+    // A symbol is owned by a file. If multiple files define the
     // symbol, the strongest binding is chosen.
     ObjectFile *file = nullptr;
     u32 elem_index = 0;
+    // data or code section
+    InputSection *isec = nullptr;
 
     std::optional<WasmSymbol> wsym = std::nullopt;
 

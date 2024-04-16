@@ -168,8 +168,6 @@ void create_synthetic_sections(Context &ctx) {
 
             saw.insert({wsym.info.kind, wsym.info.value.element_index});
         }
-        if (obj->code.has_value())
-            ctx.codes.push_back(obj->code.value());
     });
 }
 

@@ -4,6 +4,7 @@
 #include "common/system.h"
 #include "wasm/symbol.h"
 #include "xld_private/chunk.h"
+#include <atomic>
 
 namespace xld::wasm {
 
@@ -24,6 +25,7 @@ class InputSection {
     void apply_reloc(Context &ctx, u64 osec_content_offset);
 
     u8 sec_id;
+    // section index in the object file
     u32 index;
     ObjectFile *obj;
     std::string name;
@@ -37,9 +39,34 @@ class InputSection {
         u64 copy_start = 0;
     } loc;
 
+    bool size_calculated = false;
+    std::atomic<bool> wrote = false;
+    std::atomic<bool> reloc_applied = false;
+
   private:
     std::span<const u8> span;
 };
+
+/*
+// Input fragment which are relocatable. e.g. a function code, a data entry
+class InputFragment {
+  public:
+    InputFragment(u8 sec_id, std::span<const u8> span, u32 in_offset)
+        : sec_id(sec_id), span(span) {
+        loc.in_offset = in_offset;
+    }
+
+    u8 sec_id;
+    std::span<const u8> span;
+
+    struct {
+        // offset from beggining of the content of input section
+        u32 in_offset;
+        // offset from beggining of the content of output section
+        u64 out_offset = 0;
+    } loc;
+};
+*/
 
 class InputFile {
   public:

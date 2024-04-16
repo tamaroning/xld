@@ -66,6 +66,7 @@ struct Context {
     // output imports
     tbb::concurrent_set<Symbol *> import_functions;
     tbb::concurrent_set<Symbol *> import_globals;
+
     tbb::concurrent_vector<Symbol *> functions;
     tbb::concurrent_vector<Symbol *> globals;
 
@@ -74,7 +75,6 @@ struct Context {
 
     std::vector<WasmSignature> signatures;
 
-    tbb::concurrent_vector<InputSection *> codes;
     // TODO: DATA
 
     // Command-line arguments

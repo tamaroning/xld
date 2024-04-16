@@ -394,9 +394,12 @@ u64 CodeSection::compute_section_size(Context &ctx) {
     u64 size = 0;
     size += get_varuint32_size(ctx.functions.size()); // number of code
 
-    for (auto code : ctx.codes) {
-        code->loc.offset = size;
-        size += code->get_size();
+    for (auto f : ctx.functions) {
+        if (!f->isec->size_calculated) {
+            f->isec->loc.offset = size;
+            size += f->isec->get_size();
+            f->isec->size_calculated = true;
+        }
     }
     loc.content_size = size;
     finalize_section_size_common(size);
@@ -409,22 +412,21 @@ void CodeSection::copy_buf(Context &ctx) {
     // content size
     write_varuint32(buf, loc.content_size);
 
+    u8 *const content_beg = buf;
+
     // functions
     write_varuint32(buf, ctx.functions.size());
-    for (auto &code : ctx.codes) {
-        code->write_to(ctx, buf);
-        buf += code->get_size();
-    }
-
-    ASSERT(buf == ctx.buf + loc.offset + loc.size);
+    tbb::parallel_for_each(ctx.functions, [&](Symbol *f) {
+        f->isec->write_to(ctx, content_beg + f->isec->loc.offset);
+    });
 }
 
 void CodeSection::apply_reloc(Context &ctx) {
-    for (auto &code : ctx.codes) {
+    tbb::parallel_for_each(ctx.functions, [&](Symbol *f) {
         u64 osec_content_file_offset =
             this->loc.offset + (this->loc.size - this->loc.content_size);
-        code->apply_reloc(ctx, osec_content_file_offset);
-    }
+        f->isec->apply_reloc(ctx, osec_content_file_offset);
+    });
 }
 
 // TODO: names should not be linking names but debug names

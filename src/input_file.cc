@@ -10,6 +10,10 @@ namespace xld::wasm {
 u64 InputSection::get_size() { return span.size() - loc.copy_start; }
 
 void InputSection::write_to(Context &ctx, u8 *buf) {
+    if (wrote.exchange(true))
+        return;
+
+    Debug(ctx) << "writing section: " << name << " " << obj->filename;
     memcpy(buf, span.data() + loc.copy_start, get_size());
 }
 
@@ -28,6 +32,9 @@ static std::string_view get_reloc_type_name(u8 type) {
 #undef WASM_RELOC
 
 void InputSection::apply_reloc(Context &ctx, u64 osec_content_file_offset) {
+    if (reloc_applied.exchange(true))
+        return;
+
     Debug(ctx) << "applying relocs for " << name;
     u8 *isec_base = ctx.buf + osec_content_file_offset + loc.offset;
     for (WasmRelocation &reloc : relocs) {
@@ -164,7 +171,6 @@ void ObjectFile::resolve_symbols(Context &ctx) {
         if (sym->wsym.has_value())
             continue;
         sym->wsym = wsym;
-    
     }
 
     // Register symbols
@@ -200,6 +206,11 @@ void ObjectFile::resolve_symbols(Context &ctx) {
             sym->file = this;
             sym->wsym = wsym;
             sym->elem_index = wsym.info.value.element_index;
+            if (wsym.is_type_function())
+                sym->isec = this->code.value();
+            if (wsym.is_type_data())
+                sym->isec = this->data.value();
+
             if (wsym.is_binding_weak())
                 sym->binding = Symbol::Binding::Weak;
             else if (wsym.is_binding_global())
