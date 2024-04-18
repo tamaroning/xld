@@ -76,6 +76,7 @@ add_synthetic_global_symbol(Context &ctx, ObjectFile *obj, WasmGlobal *g,
 }
 
 void create_internal_file(Context &ctx) {
+    // Create an internal object file to hold linker-synthesized symbols
     ObjectFile *obj = ObjectFile::create(ctx, "<internal>");
 
     // https://github.com/kubkon/zld/blob/e4d9b667b21e51cb3882c8d113c0adb739e1c86f/src/Wasm.zig#L951
@@ -90,7 +91,6 @@ void create_internal_file(Context &ctx) {
 
     // __stack_pointer
     {
-        // https://github.com/llvm/llvm-project/blob/e6f63a942a45e3545332cd9a43982a69a4d5667b/lld/wasm/WriterUtils.cpp#L169
         // We set the actual value in setup_memory
         WasmGlobal g = WasmGlobal{.type = mutable_global_type_i32,
                                   .init_expr = int32_const(0),
@@ -110,7 +110,7 @@ void create_internal_file(Context &ctx) {
         };
     }
 
-    ctx.files.push_back(obj);
+    ctx.files.insert(ctx.files.begin(), obj);
 }
 
 void create_synthetic_sections(Context &ctx) {
@@ -127,27 +127,33 @@ void create_synthetic_sections(Context &ctx) {
     push(ctx.memory = new MemorySection());
     push(ctx.global = new GlobalSection());
     push(ctx.export_ = new ExportSection());
+    push(ctx.data_count = new DataCountSection());
     push(ctx.code = new CodeSection());
+    push(ctx.data_sec = new DataSection());
     push(ctx.name = new NameSection());
 
+    tbb::concurrent_set<Symbol *> saw;
     tbb::parallel_for_each(ctx.files, [&](InputFile *file) {
         if (file->kind != InputFile::Object)
             return;
 
-        std::set<std::pair<u8, u32>> saw;
         ObjectFile *obj = static_cast<ObjectFile *>(file);
+
+        // Encode symbol definiton as (symbol type, index) because a symbol
+        // table in a object file may contain multiple symbols refering to the
+        // same item.
+        std::set<std::pair<WasmSymbolType, u32>> visited;
         for (auto &wsym : obj->symbols) {
-            if (wsym.is_binding_local()) {
+            if (wsym.is_binding_local())
                 continue;
-            }
             if (wsym.is_undefined())
                 continue;
-
-            if (saw.find({wsym.info.kind, wsym.info.value.element_index}) !=
-                saw.end())
+            if (!visited.insert({wsym.info.kind, wsym.info.value.element_index})
+                     .second)
                 continue;
 
             Symbol *sym = get_symbol(ctx, wsym.info.name);
+
             if (wsym.is_type_function()) {
                 ctx.functions.push_back(sym);
                 if (should_export_symbol(ctx, sym))
@@ -156,9 +162,11 @@ void create_synthetic_sections(Context &ctx) {
                 ctx.globals.push_back(sym);
                 if (should_export_symbol(ctx, sym))
                     ctx.export_globals.push_back(sym);
+            } else if (wsym.is_type_data()) {
+                ctx.datas.push_back(sym);
+                if (should_export_symbol(ctx, sym))
+                    ctx.export_datas.push_back(sym);
             }
-
-            saw.insert({wsym.info.kind, wsym.info.value.element_index});
         }
     });
 }
@@ -218,14 +226,19 @@ void setup_memory(Context &ctx) {
                                        .maximum = kMaxMemoryPages};
     }
 
-    // TODO: table
+    // At least, we need to set __memory_base, __table_base, and __stack_pointer
+    // https://github.com/WebAssembly/tool-conventions/blob/main/DynamicLinking.md#interface-and-usage
+    // TODO: __memory_base
+    // TODO: __table_base
 
     // TODO: data segments
+    // TODO: __data_end
 
     offset = align(offset, kStackAlign);
-    // __stack_low
+    // TODO: __stack_low
     offset += kStackSize;
-    // __stack_high == __heap_base = __stack_pointer
+    // TODO: __stack_high
+    // TODO: __heap_base
     {
         Symbol *sp = get_symbol(ctx, "__stack_pointer");
         sp->file->globals[sp->index].init_expr = int32_const(offset);

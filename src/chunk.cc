@@ -1,3 +1,4 @@
+#include "xld_private/chunk.h"
 #include "common/leb128.h"
 #include "common/log.h"
 #include "wasm/object.h"
@@ -390,6 +391,27 @@ void ExportSection::copy_buf(Context &ctx) {
     ASSERT(buf == ctx.buf + loc.offset + loc.size);
 }
 
+u64 DataCountSection::compute_section_size(Context &ctx) {
+    u64 size = 0;
+    size += get_varuint32_size(ctx.datas.size()); // number of data segments
+
+    loc.content_size = size;
+    finalize_section_size_common(size);
+    return size;
+}
+
+void DataCountSection::copy_buf(Context &ctx) {
+    u8 *buf = ctx.buf + loc.offset;
+    write_byte(buf, WASM_SEC_DATACOUNT);
+    // content size
+    write_varuint32(buf, loc.content_size);
+
+    // data segments
+    write_varuint32(buf, ctx.datas.size());
+
+    ASSERT(buf == ctx.buf + loc.offset + loc.size);
+}
+
 u64 CodeSection::compute_section_size(Context &ctx) {
     u64 size = 0;
     size += get_varuint32_size(ctx.functions.size()); // number of code
@@ -426,6 +448,45 @@ void CodeSection::apply_reloc(Context &ctx) {
         u64 osec_content_file_offset =
             this->loc.offset + (this->loc.size - this->loc.content_size);
         f->isec->apply_reloc(ctx, osec_content_file_offset);
+    });
+}
+
+u64 DataSection::compute_section_size(Context &ctx) {
+    u64 size = 0;
+    size += get_varuint32_size(ctx.datas.size()); // number of data segments
+
+    for (auto sym : ctx.datas) {
+        if (!sym->isec->size_calculated) {
+            sym->isec->loc.offset = size;
+            size += sym->isec->get_size();
+            sym->isec->size_calculated = true;
+        }
+    }
+    loc.content_size = size;
+    finalize_section_size_common(size);
+    return size;
+}
+
+void DataSection::copy_buf(Context &ctx) {
+    u8 *buf = ctx.buf + loc.offset;
+    write_byte(buf, WASM_SEC_DATA);
+    // content size
+    write_varuint32(buf, loc.content_size);
+
+    u8 *const content_beg = buf;
+
+    // data segments
+    write_varuint32(buf, ctx.datas.size());
+    tbb::parallel_for_each(ctx.datas, [&](Symbol *sym) {
+        sym->isec->write_to(ctx, content_beg + sym->isec->loc.offset);
+    });
+}
+
+void DataSection::apply_reloc(Context &ctx) {
+    tbb::parallel_for_each(ctx.datas, [&](Symbol *sym) {
+        u64 osec_content_file_offset =
+            this->loc.offset + (this->loc.size - this->loc.content_size);
+        sym->isec->apply_reloc(ctx, osec_content_file_offset);
     });
 }
 

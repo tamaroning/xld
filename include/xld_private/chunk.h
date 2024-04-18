@@ -122,11 +122,34 @@ class ExportSection : public Chunk {
     void copy_buf(Context &ctx) override;
 };
 
+class DataCountSection : public Chunk {
+  public:
+    DataCountSection() {
+        this->name = "datacount";
+        sec_id = WASM_SEC_DATACOUNT;
+    }
+
+    u64 compute_section_size(Context &ctx) override;
+    void copy_buf(Context &ctx) override;
+};
+
 class CodeSection : public Chunk {
   public:
     CodeSection() {
         this->name = "code";
         sec_id = WASM_SEC_CODE;
+    }
+
+    u64 compute_section_size(Context &ctx) override;
+    void copy_buf(Context &ctx) override;
+    void apply_reloc(Context &ctx) override;
+};
+
+class DataSection : public Chunk {
+  public:
+    DataSection() {
+        this->name = "data";
+        sec_id = WASM_SEC_DATA;
     }
 
     u64 compute_section_size(Context &ctx) override;
