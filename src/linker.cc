@@ -101,6 +101,8 @@ int linker_main(int argc, char **argv) {
     // Create linker-synthesized sections
     create_synthetic_sections(ctx);
 
+    assign_index(ctx);
+
     calculate_types(ctx);
 
     // Make sure that there's no duplicate symbol

@@ -1,12 +1,13 @@
 #include "pass.h"
 #include "common/log.h"
 #include "common/system.h"
+#include "oneapi/tbb/parallel_for.h"
 #include "oneapi/tbb/parallel_for_each.h"
 #include "wasm/object.h"
 #include "xld.h"
-#include "xld_private/symbol.h"
+#include <atomic>
+#include <mutex>
 #include <set>
-#include <unordered_map>
 
 namespace xld::wasm {
 
@@ -20,6 +21,7 @@ void resolve_symbols(Context &ctx) {
 void calculate_imports(Context &ctx) {
     // resolve all undefined symbols
     // cannot parallelize because of pushing to output imports
+    std::mutex m;
     tbb::parallel_for_each(ctx.files, [&](InputFile *file) {
         if (file->kind != InputFile::Object)
             return;
@@ -155,12 +157,10 @@ void create_synthetic_sections(Context &ctx) {
 
             Symbol *sym = get_symbol(ctx, wsym.info.name);
             if (wsym.is_type_function()) {
-                sym->index = ctx.functions.size() + ctx.import_functions.size();
                 ctx.functions.push_back(sym);
                 if (should_export_symbol(ctx, sym))
                     ctx.export_functions.push_back(sym);
             } else if (wsym.is_type_global()) {
-                sym->index = ctx.globals.size() + ctx.import_globals.size();
                 ctx.globals.push_back(sym);
                 if (should_export_symbol(ctx, sym))
                     ctx.export_globals.push_back(sym);
@@ -169,6 +169,30 @@ void create_synthetic_sections(Context &ctx) {
             saw.insert({wsym.info.kind, wsym.info.value.element_index});
         }
     });
+}
+
+void assign_index(Context &ctx) {
+    {
+        u32 idx = 0;
+        for (auto sym : ctx.import_functions) {
+            sym->index = idx++;
+        }
+    }
+    {
+        u32 idx = 0;
+        for (auto sym : ctx.import_globals) {
+            sym->index = idx++;
+        }
+    }
+
+    tbb::parallel_for(
+        static_cast<std::size_t>(0), ctx.functions.size(), [&](std::size_t i) {
+            ctx.functions[i]->index = i + ctx.import_functions.size();
+        });
+    tbb::parallel_for(static_cast<std::size_t>(0), ctx.globals.size(),
+                      [&](std::size_t i) {
+                          ctx.globals[i]->index = i + ctx.import_globals.size();
+                      });
 }
 
 void calculate_types(Context &ctx) {

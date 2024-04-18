@@ -44,22 +44,12 @@ void InputSection::apply_reloc(Context &ctx, u64 osec_content_file_offset) {
         case R_WASM_FUNCTION_INDEX_LEB: {
             std::string &name = this->obj->symbols[reloc.index].info.name;
             Symbol *sym = get_symbol(ctx, name);
-            if (sym->is_undefined()) {
-                Error(ctx) << "Ignore relocation to undefined symbol: " << name;
-                continue;
-            }
-            // ASSERT(sym->is_defined());
             u32 index = sym->index;
             encode_uleb128(index, reloc_loc, 5);
         } break;
         case R_WASM_GLOBAL_INDEX_LEB: {
             std::string &name = this->obj->symbols[reloc.index].info.name;
             Symbol *sym = get_symbol(ctx, name);
-            if (sym->is_undefined()) {
-                Error(ctx) << "Ignore relocation to undefined symbol: " << name;
-                continue;
-            }
-            // ASSERT(sym->is_defined());
             u32 index = sym->index;
             encode_uleb128(index, reloc_loc, 5);
         } break;

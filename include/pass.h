@@ -12,6 +12,8 @@ void calculate_imports(Context &);
 
 void create_synthetic_sections(Context &);
 
+void assign_index(Context &);
+
 void calculate_types(Context &);
 
 u64 compute_section_sizes(Context &);
