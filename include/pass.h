@@ -16,6 +16,8 @@ void assign_index(Context &);
 
 void calculate_types(Context &);
 
+void setup_memory(Context &);
+
 u64 compute_section_sizes(Context &);
 
 void copy_chunks(Context &);

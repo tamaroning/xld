@@ -440,9 +440,8 @@ struct WasmDataSegment {
 
     std::span<uint8_t> content;
     std::string name; // from the "segment info" section
-    // Encoded as power of 2.
     // from the "segmentinfo" subsection in the "linking" section
-    uint32_t alignment;
+    uint32_t p2align;
     uint32_t linking_flags;
     // uint32_t Comdat; // from the "comdat info" section
 };

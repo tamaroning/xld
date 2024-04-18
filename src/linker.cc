@@ -139,6 +139,8 @@ int linker_main(int argc, char **argv) {
     // Set actual addresses to linker-synthesized symbols.
     // fix_synthetic_symbols(ctx);
 
+    setup_memory(ctx);
+
     // At this point, both memory and file layouts are fixed.
 
     // Compute sizes of output sections while assigning offsets
@@ -146,8 +148,8 @@ int linker_main(int argc, char **argv) {
     u64 size = compute_section_sizes(ctx);
 
     // https://github.com/tamaroning/mold/blob/3df7c8e89c507865abe0fad4ff5355f4d328f78d/elf/main.cc#L637
-    std::string filename = "a.wasm";
-    if (ctx.arg.output_file != "")
+    std::string filename{kDefaultFileName};
+    if (!ctx.arg.output_file.empty())
         filename = ctx.arg.output_file;
     auto output_file = OutputFile<Context>::open(ctx, filename, size, 0777);
     ctx.buf = output_file->buf;

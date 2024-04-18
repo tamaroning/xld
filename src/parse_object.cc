@@ -328,7 +328,7 @@ void ObjectFile::parse_linking_sec(Context &ctx, const u8 *&p, const u32 size) {
             u32 index = 0;
             std::function<void(const u8 *&)> f = [&](const u8 *&data) {
                 this->data_segments[index].name = parse_name(data);
-                this->data_segments[index].alignment = parse_varuint32(data);
+                this->data_segments[index].p2align = parse_varuint32(data);
                 this->data_segments[index].linking_flags =
                     parse_varuint32(data);
                 index++;

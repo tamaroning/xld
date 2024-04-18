@@ -5,6 +5,7 @@
 #include "oneapi/tbb/parallel_for_each.h"
 #include "wasm/object.h"
 #include "xld.h"
+#include "xld_private/symbol.h"
 #include <atomic>
 #include <mutex>
 #include <set>
@@ -90,17 +91,13 @@ void create_internal_file(Context &ctx) {
     // __stack_pointer
     {
         // https://github.com/llvm/llvm-project/blob/e6f63a942a45e3545332cd9a43982a69a4d5667b/lld/wasm/WriterUtils.cpp#L169
-        WasmGlobal *g = new WasmGlobal{.type = mutable_global_type_i32,
-                                       .init_expr = int32_const(65536 - 16),
-                                       .symbol_name = "__stack_pointer"};
-        add_synthetic_global_symbol(ctx, obj, g,
+        // We set the actual value in setup_memory
+        WasmGlobal g = WasmGlobal{.type = mutable_global_type_i32,
+                                  .init_expr = int32_const(0),
+                                  .symbol_name = "__stack_pointer"};
+        add_synthetic_global_symbol(ctx, obj, &g,
                                     WASM_SYMBOL_BINDING_GLOBAL |
                                         WASM_SYMBOL_VISIBILITY_HIDDEN);
-        /*
-        Symbol *sym = get_symbol(ctx, g->symbol_name);
-        sym->is_alive = true;
-        sym->visibility = Symbol::Visibility::Hidden;
-        */
     }
 
     // __indirect_function_table
@@ -132,11 +129,6 @@ void create_synthetic_sections(Context &ctx) {
     push(ctx.export_ = new ExportSection());
     push(ctx.code = new CodeSection());
     push(ctx.name = new NameSection());
-
-    {
-        // memory
-        ctx.output_memory = WasmLimits{.flags = 0, .minimum = 1, .maximum = 0};
-    }
 
     tbb::parallel_for_each(ctx.files, [&](InputFile *file) {
         if (file->kind != InputFile::Object)
@@ -208,6 +200,41 @@ void calculate_types(Context &ctx) {
         sym->sig_index = ctx.signatures.size();
         ctx.signatures.push_back(*sig);
     }
+}
+
+// align offset to `align`
+// e.g. align(0, 16) = 0, align(1, 16) = 16, align(33, 16) = 48
+static i32 align(i32 offset, i32 align) {
+    return ((offset + align - 1) / align) * align;
+}
+
+void setup_memory(Context &ctx) {
+    i32 offset = 0;
+    const u32 memory_size = kPageSize * kMinMemoryPages;
+    {
+        // memory
+        ctx.output_memory = WasmLimits{.flags = WASM_LIMITS_FLAG_HAS_MAX,
+                                       .minimum = kMinMemoryPages,
+                                       .maximum = kMaxMemoryPages};
+    }
+
+    // TODO: table
+
+    // TODO: data segments
+
+    offset = align(offset, kStackAlign);
+    // __stack_low
+    offset += kStackSize;
+    // __stack_high == __heap_base = __stack_pointer
+    {
+        Symbol *sp = get_symbol(ctx, "__stack_pointer");
+        sp->file->globals[sp->index].init_expr = int32_const(offset);
+    }
+
+    // TODO: heap
+
+    if (offset > memory_size)
+        Error(ctx) << "Corrupted memory layout";
 }
 
 u64 compute_section_sizes(Context &ctx) {
