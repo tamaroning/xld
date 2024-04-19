@@ -56,7 +56,7 @@ struct Context {
     CodeSection *code = nullptr;
     DataCountSection *data_count = nullptr;
     ExportSection *export_ = nullptr;
-    DataSection* data_sec = nullptr;
+    DataSection *data_sec = nullptr;
     NameSection *name = nullptr;
 
     // Linker synthesized symbols which needs special handling.
@@ -71,7 +71,7 @@ struct Context {
 
     tbb::concurrent_vector<Symbol *> functions;
     tbb::concurrent_vector<Symbol *> globals;
-    tbb::concurrent_vector<Symbol*> data_symbols;
+    tbb::concurrent_vector<Symbol *> data_symbols;
     tbb::concurrent_vector<WasmDataSegment> segments;
 
     tbb::concurrent_vector<Symbol *> export_functions;
