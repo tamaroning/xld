@@ -7,6 +7,7 @@
 #include "xld.h"
 #include "xld_private/symbol.h"
 #include <atomic>
+#include <map>
 #include <mutex>
 #include <set>
 
@@ -163,7 +164,7 @@ void create_synthetic_sections(Context &ctx) {
                 if (should_export_symbol(ctx, sym))
                     ctx.export_globals.push_back(sym);
             } else if (wsym.is_type_data()) {
-                ctx.datas.push_back(sym);
+                ctx.data_symbols.push_back(sym);
                 if (should_export_symbol(ctx, sym))
                     ctx.export_datas.push_back(sym);
             }
@@ -217,6 +218,7 @@ static i32 align(i32 offset, i32 align) {
 }
 
 void setup_memory(Context &ctx) {
+    Debug(ctx) << "Setting up memory layout";
     i32 offset = 0;
     const u32 memory_size = kPageSize * kMinMemoryPages;
     {
@@ -231,7 +233,45 @@ void setup_memory(Context &ctx) {
     // TODO: __memory_base
     // TODO: __table_base
 
-    // TODO: data segments
+    // Set virtual addresses to all symbols and push data segments if needed
+    tbb::parallel_for_each(ctx.files, [&](InputFile *file) {
+        if (file->kind != InputFile::Object)
+            return;
+        ObjectFile *obj = static_cast<ObjectFile *>(file);
+
+        // segment index -> offset
+        std::map<u32, i32> visited_segs;
+        for (auto &wsym : obj->symbols) {
+            if (wsym.is_binding_local())
+                continue;
+            if (wsym.is_undefined())
+                continue;
+            if (!wsym.is_type_data())
+                continue;
+
+            Symbol *sym = get_symbol(ctx, wsym.info.name);
+
+            u32 seg_index = wsym.info.value.data_ref.segment;
+            auto it = visited_segs.find(seg_index);
+            i32 seg_offset;
+            if (it != visited_segs.end()) {
+                seg_offset = it->second;
+                continue;
+            } else {
+                WasmDataSegment seg = obj->data_segments[seg_index];
+                offset = align(offset, seg.p2align);
+                Debug(ctx) << "Data segment: " << seg_index << " offset: 0x"
+                           << offset << " size: 0x" << seg.content.size();
+                seg_offset = offset;
+                seg.offset = int32_const(offset);
+                offset += seg.content.size();
+                ctx.segments.emplace_back(seg);
+            }
+
+            sym->virtual_address = seg_offset + wsym.info.value.data_ref.offset;
+        }
+    });
+
     // TODO: __data_end
 
     offset = align(offset, kStackAlign);

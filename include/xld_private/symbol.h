@@ -39,6 +39,8 @@ class Symbol {
     // output sig_index
     u32 sig_index = 0;
 
+    i32 virtual_address = 0;
+
     enum class Binding {
         Weak,
         Global,

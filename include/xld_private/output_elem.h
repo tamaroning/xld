@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common/integers.h"
+#include "wasm/object.h"
 
 namespace xld::wasm {
 
@@ -16,6 +17,12 @@ class OutputElem {
     ObjectFile *file = nullptr;
     // signature/global/function/table index
     u64 index = 0xdeadbeaf;
+};
+
+class OutputSegment {
+  public:
+    WasmDataSegment *seg;
+    i32 virtualal_address;
 };
 
 } // namespace xld::wasm

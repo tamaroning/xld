@@ -393,7 +393,7 @@ void ExportSection::copy_buf(Context &ctx) {
 
 u64 DataCountSection::compute_section_size(Context &ctx) {
     u64 size = 0;
-    size += get_varuint32_size(ctx.datas.size()); // number of data segments
+    size += get_varuint32_size(ctx.segments.size()); // number of data segments
 
     loc.content_size = size;
     finalize_section_size_common(size);
@@ -407,7 +407,7 @@ void DataCountSection::copy_buf(Context &ctx) {
     write_varuint32(buf, loc.content_size);
 
     // data segments
-    write_varuint32(buf, ctx.datas.size());
+    write_varuint32(buf, ctx.segments.size());
 
     ASSERT(buf == ctx.buf + loc.offset + loc.size);
 }
@@ -453,9 +453,9 @@ void CodeSection::apply_reloc(Context &ctx) {
 
 u64 DataSection::compute_section_size(Context &ctx) {
     u64 size = 0;
-    size += get_varuint32_size(ctx.datas.size()); // number of data segments
+    size += get_varuint32_size(ctx.segments.size()); // number of data segments
 
-    for (auto sym : ctx.datas) {
+    for (auto sym : ctx.data_symbols) {
         if (!sym->isec->size_calculated) {
             sym->isec->loc.offset = size;
             size += sym->isec->get_size();
@@ -476,14 +476,14 @@ void DataSection::copy_buf(Context &ctx) {
     u8 *const content_beg = buf;
 
     // data segments
-    write_varuint32(buf, ctx.datas.size());
-    tbb::parallel_for_each(ctx.datas, [&](Symbol *sym) {
+    write_varuint32(buf, ctx.segments.size());
+    tbb::parallel_for_each(ctx.data_symbols, [&](Symbol *sym) {
         sym->isec->write_to(ctx, content_beg + sym->isec->loc.offset);
     });
 }
 
 void DataSection::apply_reloc(Context &ctx) {
-    tbb::parallel_for_each(ctx.datas, [&](Symbol *sym) {
+    tbb::parallel_for_each(ctx.data_symbols, [&](Symbol *sym) {
         u64 osec_content_file_offset =
             this->loc.offset + (this->loc.size - this->loc.content_size);
         sym->isec->apply_reloc(ctx, osec_content_file_offset);
