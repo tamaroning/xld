@@ -15,9 +15,22 @@ namespace xld::wasm {
 
 void resolve_symbols(Context &ctx) {
     // Add symbols to the global symbol table
-    for (InputFile *file : ctx.files) {
-        file->resolve_symbols(ctx);
-    }
+    tbb::parallel_for_each(
+        ctx.files, [&](InputFile *file) { file->resolve_symbols(ctx); });
+}
+
+void check_undefined(Context &ctx) {
+    Debug(ctx) << "Checking undefined symbols";
+    tbb::parallel_for_each(ctx.symbol_map, [&](auto &pair) {
+        Symbol &sym = pair.second;
+        if (sym.is_defined())
+            return;
+
+        if (allow_undefined_symbol(ctx, &sym))
+            return;
+
+        Error(ctx) << "Undefined symbol: " << sym.name;
+    });
 }
 
 void calculate_imports(Context &ctx) {

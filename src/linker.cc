@@ -92,6 +92,8 @@ int linker_main(int argc, char **argv) {
     //   and a follow-up re-resolution after the LTO objects are emitted.
     resolve_symbols(ctx);
 
+    check_undefined(ctx);
+
     calculate_imports(ctx);
 
     ctx.checkpoint();

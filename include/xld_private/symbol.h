@@ -8,6 +8,8 @@ namespace xld::wasm {
 // forward-decl
 class InputFile;
 
+u32 get_rank(const WasmSymbol& wsym);
+
 // Global or weak symbol. This class is not instanciated for local symbols.
 class Symbol {
   public:

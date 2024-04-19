@@ -150,20 +150,7 @@ bool ObjectFile::is_valid_section_symbol(u32 Index) {
 }
 
 void ObjectFile::resolve_symbols(Context &ctx) {
-    // First, collect all non-local WasmSymbols
-    for (WasmSymbol &wsym : this->symbols) {
-        if (wsym.is_binding_local())
-            continue;
-        // we only care about global or weak symbols
-        if (!wsym.is_binding_global() && !wsym.is_binding_weak())
-            continue;
-        Symbol *sym = get_symbol(ctx, wsym.info.name);
-        if (sym->wsym.has_value())
-            continue;
-        sym->wsym = wsym;
-    }
-
-    // Register symbols
+    // Register all symbols in symtab to global symbol map
     for (WasmSymbol &wsym : this->symbols) {
         if (wsym.is_binding_local())
             continue;
@@ -173,26 +160,20 @@ void ObjectFile::resolve_symbols(Context &ctx) {
         if (wsym.is_undefined())
             continue;
 
+        // Non-local symbol has a unique name. So we can get a Symbol* safely.
         Symbol *sym = get_symbol(ctx, wsym.info.name);
 
         if (wsym.is_exported())
             sym->is_exported = true;
 
-        bool is_weak_def = wsym.is_defined() && wsym.is_binding_weak();
-        bool is_global_def = wsym.is_defined() && wsym.is_binding_global();
-
-        bool prev_is_weak_def =
-            sym->is_defined() && sym->binding == Symbol::Binding::Weak;
-        bool prev_is_global_def =
-            sym->is_defined() && sym->binding == Symbol::Binding::Global;
-
-        if (prev_is_global_def && is_global_def) {
-            Error(ctx) << "duplicate strong symbol definition: "
+        if (sym->is_defined() && sym->binding == Symbol::Binding::Global &&
+            wsym.is_defined() && wsym.is_binding_global()) {
+            Error(ctx) << "Duplicate strong symbol definition: "
                        << wsym.info.name << '\n';
         }
 
-        bool should_override = is_global_def;
-        if (should_override) {
+        if (!sym->wsym.has_value() ||
+            get_rank(wsym) > get_rank(sym->wsym.value())) {
             sym->file = this;
             sym->wsym = wsym;
             sym->elem_index = wsym.info.value.element_index;
@@ -206,7 +187,7 @@ void ObjectFile::resolve_symbols(Context &ctx) {
             else if (wsym.is_binding_global())
                 sym->binding = Symbol::Binding::Global;
         }
-    }
+    };
 }
 
 } // namespace xld::wasm

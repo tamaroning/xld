@@ -1,7 +1,19 @@
 #include "xld_private/symbol.h"
+#include "wasm/object.h"
 #include "xld.h"
 
 namespace xld::wasm {
+
+u32 get_rank(const WasmSymbol &wsym) {
+    if (wsym.is_undefined())
+        return 0;
+    else if (wsym.is_binding_weak())
+        return 1;
+    else if (wsym.is_binding_global())
+        return 2;
+    else
+        return 0;
+}
 
 // If we haven't seen the same `name` before, create a new instance
 // of Symbol and returns it. Otherwise, returns the previously-

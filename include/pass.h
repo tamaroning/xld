@@ -8,6 +8,8 @@ void create_internal_file(Context &);
 
 void resolve_symbols(Context &);
 
+void check_undefined(Context &);
+
 void calculate_imports(Context &);
 
 void create_synthetic_sections(Context &);
