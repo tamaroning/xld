@@ -839,6 +839,7 @@ void ObjectFile::parse(Context &ctx) {
                     WasmInitExpr offset = parse_init_expr(ctx, p);
                     std::vector<u8> content = parse_vec<u8>(p);
                     data = WasmDataSegment{.init_flags = flags,
+                                           .memory_index = 0,
                                            .offset = offset,
                                            .content = content};
                 } break;

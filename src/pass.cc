@@ -233,6 +233,7 @@ static i32 align(i32 offset, i32 align) {
 void setup_memory(Context &ctx) {
     Debug(ctx) << "Setting up memory layout";
     i32 offset = 0;
+    std::mutex offset_mu;
     const u32 memory_size = kPageSize * kMinMemoryPages;
     {
         // memory
@@ -271,7 +272,10 @@ void setup_memory(Context &ctx) {
                 seg_offset = it->second;
                 continue;
             } else {
+                std::scoped_lock lock(offset_mu);
+                // push data segment
                 WasmDataSegment seg = obj->data_segments[seg_index];
+                seg.memory_index = 0;
                 offset = align(offset, seg.p2align);
                 Debug(ctx) << "Data segment: " << seg_index << " offset: 0x"
                            << offset << " size: 0x" << seg.content.size();
@@ -279,9 +283,12 @@ void setup_memory(Context &ctx) {
                 seg.offset = int32_const(offset);
                 offset += seg.content.size();
                 ctx.segments.emplace_back(seg);
+                visited_segs.insert({seg_index, seg_offset});
             }
 
             sym->virtual_address = seg_offset + wsym.info.value.data_ref.offset;
+            Debug(ctx) << "Symbol: " << sym->name << " virtual address: 0x"
+                       << sym->virtual_address;
         }
     });
 

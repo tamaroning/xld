@@ -455,11 +455,24 @@ u64 DataSection::compute_section_size(Context &ctx) {
     u64 size = 0;
     size += get_varuint32_size(ctx.segments.size()); // number of data segments
 
-    for (auto sym : ctx.data_symbols) {
-        if (!sym->isec->size_calculated) {
-            sym->isec->loc.offset = size;
-            size += sym->isec->get_size();
-            sym->isec->size_calculated = true;
+    for (WasmDataSegment &seg : ctx.segments) {
+        size += get_varuint32_size(seg.init_flags);
+        switch (seg.init_flags) {
+        case 0: {
+            size += get_init_expr_size(ctx, seg.offset);
+            size += get_varuint32_size(seg.content.size());
+            size += seg.content.size();
+        } break;
+        case WASM_DATA_SEGMENT_IS_PASSIVE: {
+            size += get_varuint32_size(seg.content.size());
+            size += seg.content.size();
+        } break;
+        case WASM_DATA_SEGMENT_HAS_MEMINDEX: {
+            size += get_varuint32_size(seg.memory_index);
+            size += get_init_expr_size(ctx, seg.offset);
+            size += get_varuint32_size(seg.content.size());
+            size += seg.content.size();
+        } break;
         }
     }
     loc.content_size = size;
@@ -473,13 +486,32 @@ void DataSection::copy_buf(Context &ctx) {
     // content size
     write_varuint32(buf, loc.content_size);
 
-    u8 *const content_beg = buf;
-
     // data segments
     write_varuint32(buf, ctx.segments.size());
-    tbb::parallel_for_each(ctx.data_symbols, [&](Symbol *sym) {
-        sym->isec->write_to(ctx, content_beg + sym->isec->loc.offset);
-    });
+    for (WasmDataSegment &seg : ctx.segments) {
+        write_varuint32(buf, seg.init_flags);
+        switch (seg.init_flags) {
+        case 0: {
+            write_init_expr(ctx, buf, seg.offset);
+            write_varuint32(buf, seg.content.size());
+            memcpy(buf, seg.content.data(), seg.content.size());
+            buf += seg.content.size();
+        } break;
+        case WASM_DATA_SEGMENT_IS_PASSIVE: {
+            write_varuint32(buf, seg.content.size());
+            memcpy(buf, seg.content.data(), seg.content.size());
+            buf += seg.content.size();
+        } break;
+        case WASM_DATA_SEGMENT_HAS_MEMINDEX: {
+            write_varuint32(buf, seg.memory_index);
+            write_init_expr(ctx, buf, seg.offset);
+            write_varuint32(buf, seg.content.size());
+            memcpy(buf, seg.content.data(), seg.content.size());
+            buf += seg.content.size();
+        } break;
+        }
+    }
+    ASSERT(buf == ctx.buf + loc.offset + loc.size);
 }
 
 void DataSection::apply_reloc(Context &ctx) {

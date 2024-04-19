@@ -36,6 +36,18 @@ void InputSection::apply_reloc(Context &ctx, u64 osec_content_file_offset) {
         return;
 
     Debug(ctx) << "applying relocs for " << name;
+
+    // https://github.com/WebAssembly/tool-conventions/blob/main/Linking.md
+    // Note that for all relocation types, the bytes being relocated:
+    //   from offset to offset + 5 for LEB/SLEB relocations;
+    //   from offset to offset + 10 for LEB64/SLEB64 relocations;
+    //   from offset to offset + 4 for I32 relocations;
+    //   or from offset to offset + 8 for I64;
+    //
+    // For R_WASM_MEMORY_ADDR_*, R_WASM_FUNCTION_OFFSET_I32, and
+    // R_WASM_SECTION_OFFSET_I32 relocations (and their 64-bit counterparts) the
+    // following field is additionally present:
+    //    addend varint32: addend to add to the address
     u8 *isec_base = ctx.buf + osec_content_file_offset + loc.offset;
     for (WasmRelocation &reloc : relocs) {
         u8 *reloc_loc = isec_base + (reloc.offset - loc.copy_start);
@@ -44,14 +56,20 @@ void InputSection::apply_reloc(Context &ctx, u64 osec_content_file_offset) {
         case R_WASM_FUNCTION_INDEX_LEB: {
             std::string &name = this->obj->symbols[reloc.index].info.name;
             Symbol *sym = get_symbol(ctx, name);
-            u32 index = sym->index;
-            encode_uleb128(index, reloc_loc, 5);
+            u32 val = sym->index;
+            encode_uleb128(val, reloc_loc, 5);
         } break;
         case R_WASM_GLOBAL_INDEX_LEB: {
             std::string &name = this->obj->symbols[reloc.index].info.name;
             Symbol *sym = get_symbol(ctx, name);
-            u32 index = sym->index;
-            encode_uleb128(index, reloc_loc, 5);
+            u32 val = sym->index;
+            encode_uleb128(val, reloc_loc, 5);
+        } break;
+        case R_WASM_MEMORY_ADDR_LEB: {
+            std::string &name = this->obj->symbols[reloc.index].info.name;
+            Symbol *sym = get_symbol(ctx, name);
+            u32 val = sym->virtual_address + reloc.addend;
+            encode_uleb128(val, reloc_loc, 5);
         } break;
         default:
             Error(ctx) << "TODO: Unknown reloc type: "

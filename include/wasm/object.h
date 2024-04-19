@@ -438,7 +438,7 @@ struct WasmDataSegment {
     // Present if InitFlags & WASM_DATA_SEGMENT_IS_PASSIVE == 0.
     WasmInitExpr offset;
 
-    std::span<uint8_t> content;
+    std::vector<uint8_t> content;
     std::string name; // from the "segment info" section
     // from the "segmentinfo" subsection in the "linking" section
     uint32_t p2align;
