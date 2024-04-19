@@ -1,6 +1,7 @@
 #include "xld_private/symbol.h"
 #include "wasm/object.h"
 #include "xld.h"
+#include <utility>
 
 namespace xld::wasm {
 
@@ -20,7 +21,10 @@ u32 get_rank(const WasmSymbol &wsym) {
 // instantiated object.
 Symbol *get_symbol(Context &ctx, std::string_view name) {
     typename decltype(ctx.symbol_map)::const_accessor acc;
-    ctx.symbol_map.insert(acc, {name, Symbol(name, nullptr)});
+    // https://stackoverflow.com/questions/27960325/stdmap-emplace-without-copying-value
+    ctx.symbol_map.emplace(acc, std::piecewise_construct,
+                           std::forward_as_tuple(name),
+                           std::forward_as_tuple(name, nullptr));
     return const_cast<Symbol *>(&acc->second);
 }
 

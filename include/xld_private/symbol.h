@@ -8,12 +8,14 @@ namespace xld::wasm {
 // forward-decl
 class InputFile;
 
-u32 get_rank(const WasmSymbol& wsym);
+u32 get_rank(const WasmSymbol &wsym);
 
 // Global or weak symbol. This class is not instanciated for local symbols.
 class Symbol {
   public:
     Symbol(std::string_view name, ObjectFile *file) : name(name), file(file) {}
+
+    Symbol(const Symbol &) = delete;
 
     // The name of the symbol.
     std::string_view name;
@@ -24,6 +26,8 @@ class Symbol {
     u32 elem_index = 0;
     // data or code section
     InputSection *isec = nullptr;
+
+    std::mutex mu;
 
     std::optional<WasmSymbol> wsym = std::nullopt;
 

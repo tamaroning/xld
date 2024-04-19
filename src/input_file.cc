@@ -172,6 +172,7 @@ void ObjectFile::resolve_symbols(Context &ctx) {
                        << wsym.info.name << '\n';
         }
 
+        std::scoped_lock lock(sym->mu);
         if (!sym->wsym.has_value() ||
             get_rank(wsym) > get_rank(sym->wsym.value())) {
             sym->file = this;
