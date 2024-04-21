@@ -84,17 +84,17 @@ InputFile::InputFile(Context &ctx, const std::string &filename, MappedFile *mf)
         return;
 
     if (mf->size < sizeof(WasmObjectHeader))
-        Fatal(ctx) << filename << ": file too small\n";
+        Fatal(ctx) << filename << ": file too small";
 
     const WasmObjectHeader *ohdr =
         reinterpret_cast<WasmObjectHeader *>(mf->data);
     if (!(ohdr->magic[0] == WASM_MAGIC[0] && ohdr->magic[1] == WASM_MAGIC[1] &&
           ohdr->magic[2] == WASM_MAGIC[2] && ohdr->magic[3] == WASM_MAGIC[3]))
-        Fatal(ctx) << filename << ": bad magic\n";
+        Fatal(ctx) << filename << ": bad magic";
 
     if (ohdr->version != WASM_VERSION)
         Warn(ctx) << filename << " is version " << ohdr->version
-                  << ". xld only supports" << WASM_VERSION << '\n';
+                  << ". xld only supports" << WASM_VERSION;
 }
 
 ObjectFile::ObjectFile(Context &ctx, const std::string &filename,
@@ -167,19 +167,36 @@ bool ObjectFile::is_valid_section_symbol(u32 Index) {
     return Index < symbols.size() && symbols[Index].is_type_section();
 }
 
+static void override_symbol(Context &ctx, Symbol *sym, ObjectFile *file,
+                            WasmSymbol &wsym) {
+    sym->file = file;
+    sym->wsym = wsym;
+    sym->elem_index = wsym.info.value.element_index;
+    if (wsym.is_type_function())
+        sym->isec = file->code.value();
+    if (wsym.is_type_data())
+        sym->isec = file->data.value();
+
+    if (wsym.is_binding_weak())
+        sym->binding = Symbol::Binding::Weak;
+    else if (wsym.is_binding_global())
+        sym->binding = Symbol::Binding::Global;
+}
+
 void ObjectFile::resolve_symbols(Context &ctx) {
     // Register all symbols in symtab to global symbol map
     for (WasmSymbol &wsym : this->symbols) {
         if (wsym.is_binding_local())
             continue;
-        // we only care about global or weak symbols
-        if (!wsym.is_binding_global() && !wsym.is_binding_weak())
-            continue;
-        if (wsym.is_undefined())
-            continue;
 
-        // Non-local symbol has a unique name. So we can get a Symbol* safely.
+        // Non-local symbol has a unique name.
         Symbol *sym = get_symbol(ctx, wsym.info.name);
+        std::scoped_lock lock(sym->mu);
+
+        if (!sym->wsym.has_value()) {
+            override_symbol(ctx, sym, this, wsym);
+            continue;
+        }
 
         if (wsym.is_exported())
             sym->is_exported = true;
@@ -187,24 +204,12 @@ void ObjectFile::resolve_symbols(Context &ctx) {
         if (sym->is_defined() && sym->binding == Symbol::Binding::Global &&
             wsym.is_defined() && wsym.is_binding_global()) {
             Error(ctx) << "Duplicate strong symbol definition: "
-                       << wsym.info.name << '\n';
+                       << wsym.info.name;
         }
 
-        std::scoped_lock lock(sym->mu);
         if (!sym->wsym.has_value() ||
             get_rank(wsym) > get_rank(sym->wsym.value())) {
-            sym->file = this;
-            sym->wsym = wsym;
-            sym->elem_index = wsym.info.value.element_index;
-            if (wsym.is_type_function())
-                sym->isec = this->code.value();
-            if (wsym.is_type_data())
-                sym->isec = this->data.value();
-
-            if (wsym.is_binding_weak())
-                sym->binding = Symbol::Binding::Weak;
-            else if (wsym.is_binding_global())
-                sym->binding = Symbol::Binding::Global;
+            override_symbol(ctx, sym, this, wsym);
         }
     };
 }

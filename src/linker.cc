@@ -26,7 +26,7 @@ int linker_main(int argc, char **argv) {
             ctx.arg.allow_undefined = true;
         } else if (arg == "-o") {
             if (i + 1 >= argc)
-                Fatal(ctx) << "no output file\n";
+                Fatal(ctx) << "no output file";
             ctx.arg.output_file = argv[++i];
         } else if (arg == "--dump-input") {
             ctx.arg.dump_input = true;
@@ -37,7 +37,7 @@ int linker_main(int argc, char **argv) {
     }
 
     if (input_files.empty())
-        Fatal(ctx) << "no input files\n";
+        Fatal(ctx) << "no input files";
 
     tbb::concurrent_vector<ObjectFile *> objs;
     tbb::parallel_for_each(input_files, [&](auto &path) {

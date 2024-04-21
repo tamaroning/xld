@@ -31,8 +31,10 @@ class Symbol {
 
     std::optional<WasmSymbol> wsym = std::nullopt;
 
-    bool is_defined() const { return file != nullptr; }
-    bool is_undefined() const { return file == nullptr; }
+    bool is_defined() const { return wsym.has_value() && wsym->is_defined(); }
+    bool is_undefined() const {
+        return !wsym.has_value() || wsym->is_undefined();
+    }
 
     // bool is_imported = false;
 
