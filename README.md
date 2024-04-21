@@ -8,7 +8,7 @@ It takes advantage of the parallelism provided by multi-threading for fast linki
 - [ ] Target Features Section
 - [x] Merging Global Sections
 - [x] Merging Function Sections
-- [ ] Merging Data Sections
+- [x] Merging Data Sections
 - [ ] Merging Custom Sections
 - [ ] COMDATs
 - [ ] Start Section
@@ -16,7 +16,6 @@ It takes advantage of the parallelism provided by multi-threading for fast linki
 - [x] reloc.CODE
 - [ ] reloc.DATA
 - [ ] reloc custom
-- [ ] ignore local symbols
 
 > Relocation sections can only target code, data and custom sections.
 

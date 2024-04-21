@@ -35,8 +35,6 @@ void InputSection::apply_reloc(Context &ctx, u64 osec_content_file_offset) {
     if (reloc_applied.exchange(true))
         return;
 
-    Debug(ctx) << "applying relocs for " << name;
-
     // https://github.com/WebAssembly/tool-conventions/blob/main/Linking.md
     // Note that for all relocation types, the bytes being relocated:
     //   from offset to offset + 5 for LEB/SLEB relocations;
@@ -74,6 +72,13 @@ void InputSection::apply_reloc(Context &ctx, u64 osec_content_file_offset) {
         default:
             Error(ctx) << "TODO: Unknown reloc type: "
                        << get_reloc_type_name(reloc.type);
+        }
+        {
+            std::string &name = this->obj->symbols[reloc.index].info.name;
+            Symbol &sym = *get_symbol(ctx, name);
+            Debug(ctx) << "- reloc for symbol: " << sym.name
+                       << ", sec=" << this->name << " ("
+                       << get_reloc_type_name(reloc.type) << ")";
         }
     }
 }
