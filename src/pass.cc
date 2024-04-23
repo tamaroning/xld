@@ -241,6 +241,7 @@ void setup_memory(Context &ctx) {
     // TODO: __memory_base
     // TODO: __table_base
 
+    // merge data fragments
     tbb::parallel_for_each(ctx.files, [&](InputFile *file) {
         if (file->kind != InputFile::Object)
             return;
@@ -270,6 +271,7 @@ void setup_memory(Context &ctx) {
         }
     });
 
+    // assign offset to segments
     for (auto &[name, seg] : ctx.segments) {
         offset = align(offset, seg.p2align);
         seg.set_virtual_address(offset);
@@ -278,6 +280,7 @@ void setup_memory(Context &ctx) {
         offset += seg.get_size();
     }
 
+    // assign virtual address to data symbols
     tbb::parallel_for_each(ctx.files, [&](InputFile *file) {
         if (file->kind != InputFile::Object)
             return;
