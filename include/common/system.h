@@ -54,6 +54,12 @@ using namespace oneapi;
         }                                                                      \
     } while (0)
 
+// align offset to `align`
+// e.g. align(0, 16) = 0, align(1, 16) = 16, align(33, 16) = 48
+inline static int32_t align(int32_t offset, int32_t align) {
+    return ((offset + align - 1) / align) * align;
+}
+
 // TODO: Use xxHash
 /*
 inline uint64_t hash_string(std::string_view str) {

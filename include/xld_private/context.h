@@ -9,6 +9,9 @@
 #include "wasm/object.h"
 #include "xld_private/chunk.h"
 #include "xld_private/input_file.h"
+#include <map>
+#include <memory>
+#include <vector>
 
 namespace xld::wasm {
 
@@ -43,6 +46,8 @@ struct Context {
     // TODO: use xxHash
     tbb::concurrent_hash_map<std::string_view, Symbol> symbol_map;
 
+    std::map<std::string_view, OutputSegment> segments;
+
     // Input files
     std::vector<InputFile *> files;
 
@@ -74,8 +79,7 @@ struct Context {
     tbb::concurrent_vector<Symbol *> functions;
     tbb::concurrent_vector<Symbol *> globals;
     tbb::concurrent_vector<Symbol *> data_symbols;
-    tbb::concurrent_vector<WasmDataSegment> segments;
-    // tbb::concurrent_vector<OutputSegment> output_segments;
+    tbb::concurrent_vector<OutputSegment> output_segments;
 
     tbb::concurrent_vector<Symbol *> export_functions;
     tbb::concurrent_vector<Symbol *> export_globals;

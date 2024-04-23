@@ -5,6 +5,7 @@
 #include "oneapi/tbb/parallel_for_each.h"
 #include "wasm/object.h"
 #include "xld.h"
+#include "xld_private/output_elem.h"
 #include "xld_private/symbol.h"
 #include <atomic>
 #include <map>
@@ -224,16 +225,9 @@ void calculate_types(Context &ctx) {
     }
 }
 
-// align offset to `align`
-// e.g. align(0, 16) = 0, align(1, 16) = 16, align(33, 16) = 48
-static i32 align(i32 offset, i32 align) {
-    return ((offset + align - 1) / align) * align;
-}
-
 void setup_memory(Context &ctx) {
     Debug(ctx) << "Setting up memory layout";
     i32 offset = 0;
-    std::mutex offset_mu;
     const u32 memory_size = kPageSize * kMinMemoryPages;
     {
         // memory
@@ -247,14 +241,12 @@ void setup_memory(Context &ctx) {
     // TODO: __memory_base
     // TODO: __table_base
 
-    // Set virtual addresses to all symbols and push data segments if needed
     tbb::parallel_for_each(ctx.files, [&](InputFile *file) {
         if (file->kind != InputFile::Object)
             return;
         ObjectFile *obj = static_cast<ObjectFile *>(file);
 
-        // segment index -> offset
-        std::map<u32, i32> visited_segs;
+        // merge data segments
         for (auto &wsym : obj->symbols) {
             if (wsym.is_binding_local())
                 continue;
@@ -263,32 +255,52 @@ void setup_memory(Context &ctx) {
             if (!wsym.is_type_data())
                 continue;
 
-            Symbol *sym = get_symbol(ctx, wsym.info.name);
+            // Get a global symbol and the segment where it resides
+            u32 seg_index = wsym.info.value.data_ref.segment;
+            // data segment
+            const WasmDataSegment &seg = obj->data_segments[seg_index];
+            auto oseg = OutputSegment::get_or_create(ctx, seg.name);
+            auto frag_offset = oseg->get_frag_offset(wsym.info.name);
+            if (frag_offset.has_value())
+                return;
+            else {
+                InputFragment *seg_ifrag = obj->data_ifrags[seg_index];
+                oseg->merge(ctx, seg, seg_ifrag);
+            }
+        }
+    });
+
+    for (auto &[name, seg] : ctx.segments) {
+        offset = align(offset, seg.p2align);
+        seg.set_virtual_address(offset);
+        Debug(ctx) << "Segment: " << name << " offset: 0x" << offset
+                   << " size: 0x" << seg.get_size();
+        offset += seg.get_size();
+    }
+
+    tbb::parallel_for_each(ctx.files, [&](InputFile *file) {
+        if (file->kind != InputFile::Object)
+            return;
+        ObjectFile *obj = static_cast<ObjectFile *>(file);
+
+        for (auto &wsym : obj->symbols) {
+            if (wsym.is_binding_local())
+                continue;
+            if (wsym.is_undefined())
+                continue;
+            if (!wsym.is_type_data())
+                continue;
 
             u32 seg_index = wsym.info.value.data_ref.segment;
-            auto it = visited_segs.find(seg_index);
-            i32 seg_offset;
-            if (it != visited_segs.end()) {
-                seg_offset = it->second;
-                continue;
-            } else {
-                std::scoped_lock lock(offset_mu);
-                // push data segment
-                WasmDataSegment seg = obj->data_segments[seg_index];
-                InputFragment *seg_ifrag = obj->data_ifrags[seg_index];
-                seg.memory_index = 0;
-                offset = align(offset, seg.p2align);
-                Debug(ctx) << "Data segment: " << seg_index << " offset: 0x"
-                           << offset << " size: 0x" << seg_ifrag->get_size();
-                seg_offset = offset;
-                seg.offset = int32_const(offset);
-                offset += seg_ifrag->get_size();
-                ctx.segments.emplace_back(seg);
-                visited_segs.insert({seg_index, seg_offset});
-            }
+            const WasmDataSegment &seg = obj->data_segments[seg_index];
+            auto oseg = OutputSegment::get_or_create(ctx, seg.name);
+            i32 oseg_va = oseg->get_virtual_address();
+            i32 frag_offset = oseg->get_frag_offset(seg.name).value();
 
-            sym->virtual_address = seg_offset + wsym.info.value.data_ref.offset;
-            Debug(ctx) << "Symbol: " << sym->name << " virtual address: 0x"
+            Symbol *sym = get_symbol(ctx, wsym.info.name);
+            sym->virtual_address =
+                oseg_va + frag_offset + wsym.info.value.data_ref.offset;
+            Debug(ctx) << "Data symbol: " << sym->name << " va: 0x"
                        << sym->virtual_address;
         }
     });

@@ -7,6 +7,7 @@ target_sources(xld PRIVATE
     pass.cc
     chunk.cc
     symbol.cc
+    output_elem.cc
     )
 target_link_libraries(xld PRIVATE
     headers
