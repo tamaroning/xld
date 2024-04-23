@@ -39,12 +39,25 @@ class InputSection {
         u64 copy_start = 0;
     } loc;
 
-    bool size_calculated = false;
-    std::atomic<bool> wrote = false;
-    std::atomic<bool> reloc_applied = false;
-
   private:
     std::span<const u8> span;
+};
+
+class InputFragment {
+  public:
+    InputFragment(std::span<const u8> span, u64 in_offset)
+        : span(span), in_offset(in_offset) {}
+
+    void write_to(Context &ctx, u8 *buf);
+    u64 get_size();
+    void apply_reloc(Context &ctx, u64 osec_content_offset);
+
+    std::span<const u8> span;
+    std::vector<WasmRelocation> relocs;
+    // offset from beginning of the content of the input section
+    u64 in_offset = 0;
+    // offset from beginning of the content of the output section
+    u64 out_offset = 0;
 };
 
 /*
@@ -126,9 +139,10 @@ class ObjectFile : public InputFile {
 
     // Spans of all sections
     std::vector<InputSection *> sections;
-    std::optional<InputSection *> code = std::nullopt;
-    std::optional<InputSection *> data = std::nullopt;
     std::vector<InputSection *> customs;
+
+    std::vector<InputFragment *> code_ifrags;
+    std::vector<InputFragment *> data_ifrags;
 
     std::vector<WasmSignature> signatures;
     std::vector<WasmImport> imports;

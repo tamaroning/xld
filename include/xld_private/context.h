@@ -4,6 +4,7 @@
 #include "common/mmap.h"
 #include "common/system.h"
 #include "oneapi/tbb/concurrent_set.h"
+#include "oneapi/tbb/concurrent_vector.h"
 #include "output_elem.h"
 #include "wasm/object.h"
 #include "xld_private/chunk.h"
@@ -36,6 +37,7 @@ struct Context {
     tbb::concurrent_vector<std::unique_ptr<u8[]>> string_pool;
     tbb::concurrent_vector<std::unique_ptr<Chunk>> chunk_pool;
     tbb::concurrent_vector<std::unique_ptr<InputSection>> isec_pool;
+    tbb::concurrent_vector<std::unique_ptr<InputFragment>> ifrag_pool;
 
     // Symbol table
     // TODO: use xxHash
@@ -73,6 +75,7 @@ struct Context {
     tbb::concurrent_vector<Symbol *> globals;
     tbb::concurrent_vector<Symbol *> data_symbols;
     tbb::concurrent_vector<WasmDataSegment> segments;
+    tbb::concurrent_vector<OutputSegment> output_segments;
 
     tbb::concurrent_vector<Symbol *> export_functions;
     tbb::concurrent_vector<Symbol *> export_globals;

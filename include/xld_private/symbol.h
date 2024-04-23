@@ -24,8 +24,8 @@ class Symbol {
     // symbol, the strongest binding is chosen.
     ObjectFile *file = nullptr;
     u32 elem_index = 0;
-    // data or code section
-    InputSection *isec = nullptr;
+
+    InputFragment *ifrag;
 
     std::mutex mu;
 

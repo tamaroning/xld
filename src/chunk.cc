@@ -417,11 +417,9 @@ u64 CodeSection::compute_section_size(Context &ctx) {
     size += get_varuint32_size(ctx.functions.size()); // number of code
 
     for (auto f : ctx.functions) {
-        if (!f->isec->size_calculated) {
-            f->isec->loc.offset = size;
-            size += f->isec->get_size();
-            f->isec->size_calculated = true;
-        }
+        size += get_varuint32_size(f->ifrag->get_size());
+        f->ifrag->out_offset = size;
+        size += f->ifrag->get_size();
     }
     loc.content_size = size;
     finalize_section_size_common(size);
@@ -439,7 +437,8 @@ void CodeSection::copy_buf(Context &ctx) {
     // functions
     write_varuint32(buf, ctx.functions.size());
     tbb::parallel_for_each(ctx.functions, [&](Symbol *f) {
-        f->isec->write_to(ctx, content_beg + f->isec->loc.offset);
+        write_varuint32(buf, f->ifrag->get_size());
+        f->ifrag->write_to(ctx, content_beg + f->ifrag->out_offset);
     });
 }
 
@@ -447,11 +446,12 @@ void CodeSection::apply_reloc(Context &ctx) {
     tbb::parallel_for_each(ctx.functions, [&](Symbol *f) {
         u64 osec_content_file_offset =
             this->loc.offset + (this->loc.size - this->loc.content_size);
-        f->isec->apply_reloc(ctx, osec_content_file_offset);
+        f->ifrag->apply_reloc(ctx, osec_content_file_offset);
     });
 }
 
 u64 DataSection::compute_section_size(Context &ctx) {
+    /*
     u64 size = 0;
     size += get_varuint32_size(ctx.segments.size()); // number of data segments
 
@@ -478,9 +478,13 @@ u64 DataSection::compute_section_size(Context &ctx) {
     loc.content_size = size;
     finalize_section_size_common(size);
     return size;
+    */
+    return 0;
 }
 
 void DataSection::copy_buf(Context &ctx) {
+    return;
+    /*
     u8 *buf = ctx.buf + loc.offset;
     write_byte(buf, WASM_SEC_DATA);
     // content size
@@ -512,14 +516,17 @@ void DataSection::copy_buf(Context &ctx) {
         }
     }
     ASSERT(buf == ctx.buf + loc.offset + loc.size);
+    */
 }
 
 void DataSection::apply_reloc(Context &ctx) {
+    /*
     tbb::parallel_for_each(ctx.data_symbols, [&](Symbol *sym) {
         u64 osec_content_file_offset =
             this->loc.offset + (this->loc.size - this->loc.content_size);
         sym->isec->apply_reloc(ctx, osec_content_file_offset);
     });
+    */
 }
 
 // TODO: names should not be linking names but debug names

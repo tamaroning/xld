@@ -275,13 +275,14 @@ void setup_memory(Context &ctx) {
                 std::scoped_lock lock(offset_mu);
                 // push data segment
                 WasmDataSegment seg = obj->data_segments[seg_index];
+                InputFragment *seg_ifrag = obj->data_ifrags[seg_index];
                 seg.memory_index = 0;
                 offset = align(offset, seg.p2align);
                 Debug(ctx) << "Data segment: " << seg_index << " offset: 0x"
-                           << offset << " size: 0x" << seg.content.size();
+                           << offset << " size: 0x" << seg_ifrag->span.size();
                 seg_offset = offset;
                 seg.offset = int32_const(offset);
-                offset += seg.content.size();
+                offset += seg_ifrag->span.size();
                 ctx.segments.emplace_back(seg);
                 visited_segs.insert({seg_index, seg_offset});
             }

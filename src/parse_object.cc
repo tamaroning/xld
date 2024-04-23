@@ -4,6 +4,7 @@
 #include "common/system.h"
 #include "wasm/object.h"
 #include "xld.h"
+#include "xld_private/input_file.h"
 #include <memory>
 
 namespace xld::wasm {
@@ -117,6 +118,17 @@ static wasm::ValType parse_val_type(const u8 *&data, u32 code) {
         /* Discard HeapType */ parse_varint64(data);
     }
     return wasm::ValType(wasm::ValType::OTHERREF);
+}
+
+static InputFragment *parse_ifrag(Context &ctx, const u8 *&data,
+                                  const u8 *const content_beg) {
+    u32 in_offset = data - content_beg;
+    u32 len = parse_varuint32(data);
+    std::span<const u8> content{data, data + len};
+    data += len;
+    InputFragment *ifrag = new InputFragment(content, in_offset);
+    ctx.ifrag_pool.push_back(std::unique_ptr<InputFragment>(ifrag));
+    return ifrag;
 }
 
 static std::string_view sec_id_as_str(u8 sec_id) {
@@ -298,7 +310,7 @@ void ObjectFile::parse_linking_sec(Context &ctx, const u8 *&p, const u32 size) {
                                     << " is out of range";
 
                             size_t segment_size =
-                                data_segments[segment_index].content.size();
+                                data_ifrags[segment_index]->span.size();
                             if (offset > segment_size)
                                 Error(ctx)
                                     << "invalid data symbol offset: `" << name
@@ -560,7 +572,7 @@ void ObjectFile::parse(Context &ctx) {
     if (mf == nullptr)
         return;
 
-    u8 *data = this->mf->data;
+    u8 *const data = this->mf->data;
     const u8 *p = data + sizeof(WasmObjectHeader);
 
     u32 sec_index = 0;
@@ -809,19 +821,12 @@ void ObjectFile::parse(Context &ctx) {
             foreach_vec(p, f);
         } break;
         case WASM_SEC_CODE: {
-            /*
-            std::function<std::span<const u8>(const u8 *&)> f =
-                [&](const u8 *&data) {
-                    const u8 *code_start = data;
-                    u32 size = parse_varuint32(data);
-                    std::span<const u8> code{code_start, data + size};
-                    data += size;
-                    return code;
-                };
-            this->codes = parse_vec_varlen(p, f);
-            */
-            // skip
-            p = content_beg + content_size;
+            u32 count = parse_varuint32(p);
+            while (count--) {
+                const u8 *code_start = p;
+                InputFragment *ifrag = parse_ifrag(ctx, p, content_beg);
+                this->code_ifrags.emplace_back(ifrag);
+            }
         } break;
         case WASM_SEC_DATACOUNT: {
             this->data_count = parse_varuint32(p);
@@ -831,31 +836,37 @@ void ObjectFile::parse(Context &ctx) {
             if (datacount != this->data_count)
                 Fatal(ctx) << "datacount section is not equal to data section";
 
-            for (int i = 0; i < datacount; i++) {
+            while (datacount--) {
                 u32 flags = parse_varuint32(p);
                 WasmDataSegment data;
                 switch (flags) {
                 case 0: {
                     WasmInitExpr offset = parse_init_expr(ctx, p);
-                    std::vector<u8> content = parse_vec<u8>(p);
-                    data = WasmDataSegment{.init_flags = flags,
-                                           .memory_index = 0,
-                                           .offset = offset,
-                                           .content = content};
+                    InputFragment *ifrag = parse_ifrag(ctx, p, content_beg);
+                    this->data_ifrags.push_back(ifrag);
+                    data = WasmDataSegment{
+                        .init_flags = flags,
+                        .memory_index = 0,
+                        .offset = offset,
+                    };
                 } break;
                 case WASM_DATA_SEGMENT_IS_PASSIVE: {
-                    std::vector<u8> content = parse_vec<u8>(p);
-                    data = WasmDataSegment{.init_flags = flags,
-                                           .content = content};
+                    InputFragment *ifrag = parse_ifrag(ctx, p, content_beg);
+                    this->data_ifrags.push_back(ifrag);
+                    data = WasmDataSegment{
+                        .init_flags = flags,
+                    };
                 } break;
                 case WASM_DATA_SEGMENT_HAS_MEMINDEX: {
                     u32 mem_index = parse_varuint32(p);
                     WasmInitExpr offset = parse_init_expr(ctx, p);
-                    std::vector<u8> content = parse_vec<u8>(p);
-                    data = WasmDataSegment{.init_flags = flags,
-                                           .memory_index = mem_index,
-                                           .offset = offset,
-                                           .content = content};
+                    InputFragment *ifrag = parse_ifrag(ctx, p, content_beg);
+                    this->data_ifrags.push_back(ifrag);
+                    data = WasmDataSegment{
+                        .init_flags = flags,
+                        .memory_index = mem_index,
+                        .offset = offset,
+                    };
                 } break;
                 default:
                     Fatal(ctx) << "unknown data segment flags: " << flags;
@@ -887,11 +898,7 @@ void ObjectFile::parse(Context &ctx) {
             ctx.isec_pool.emplace_back(isec);
             this->sections.emplace_back(isec);
 
-            if (sec_id == WASM_SEC_CODE) {
-                this->code = isec;
-            } else if (sec_id == WASM_SEC_DATA) {
-                this->data = isec;
-            } else if (sec_id == WASM_SEC_CUSTOM) {
+            if (sec_id == WASM_SEC_CUSTOM) {
                 this->customs.emplace_back(isec);
             }
         }

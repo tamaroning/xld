@@ -1,4 +1,5 @@
 
+#include "xld_private/input_file.h"
 #include "common/leb128.h"
 #include "common/log.h"
 #include "wasm/object.h"
@@ -7,11 +8,23 @@
 
 namespace xld::wasm {
 
+void InputFragment::write_to(Context &ctx, u8 *buf) {
+    memcpy(buf, span.data(), get_size());
+}
+
+u64 InputFragment::get_size() { return span.size(); }
+
+void InputFragment::apply_reloc(Context &ctx, u64 osec_content_offset) {
+    // TODO:
+}
+
 u64 InputSection::get_size() { return span.size() - loc.copy_start; }
 
 void InputSection::write_to(Context &ctx, u8 *buf) {
+    /*
     if (wrote.exchange(true))
         return;
+        */
 
     Debug(ctx) << "writing section: " << name << " " << obj->filename;
     memcpy(buf, span.data() + loc.copy_start, get_size());
@@ -32,8 +45,10 @@ static std::string_view get_reloc_type_name(u8 type) {
 #undef WASM_RELOC
 
 void InputSection::apply_reloc(Context &ctx, u64 osec_content_file_offset) {
-    if (reloc_applied.exchange(true))
-        return;
+
+    // FIXME:
+    // if (reloc_applied.exchange(true))
+    //    return;
 
     // https://github.com/WebAssembly/tool-conventions/blob/main/Linking.md
     // Note that for all relocation types, the bytes being relocated:
@@ -178,9 +193,9 @@ static void override_symbol(Context &ctx, Symbol *sym, ObjectFile *file,
     sym->wsym = wsym;
     sym->elem_index = wsym.info.value.element_index;
     if (wsym.is_type_function())
-        sym->isec = file->code.value();
+        sym->ifrag = file->code_ifrags[sym->elem_index];
     if (wsym.is_type_data())
-        sym->isec = file->data.value();
+        sym->ifrag = file->data_ifrags[sym->elem_index];
 
     if (wsym.is_binding_weak())
         sym->binding = Symbol::Binding::Weak;
