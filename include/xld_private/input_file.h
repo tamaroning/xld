@@ -107,12 +107,12 @@ class ObjectFile : public InputFile {
     bool is_defined_memories(u32 index);
     WasmLimits &get_defined_memories(u32 index);
 
-    bool is_valid_function_symbol(u32 Index);
-    bool is_valid_table_symbol(u32 Index);
-    bool is_valid_global_symbol(u32 Index);
-    bool is_valid_tag_symbol(u32 Index);
-    bool is_valid_data_symbol(u32 Index);
-    bool is_valid_section_symbol(u32 Index);
+    bool is_valid_function_symbol(u32 index);
+    bool is_valid_table_symbol(u32 index);
+    bool is_valid_global_symbol(u32 index);
+    bool is_valid_tag_symbol(u32 index);
+    bool is_valid_data_symbol(u32 index);
+    bool is_valid_section_symbol(u32 index);
 
     void parse(Context &ctx);
     // parse custom sections

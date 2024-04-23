@@ -45,13 +45,13 @@ void InputFragment::apply_reloc(Context &ctx, u64 osec_content_file_offset) {
         u8 *reloc_loc = frag_base + (reloc.offset - in_offset);
 
         switch (reloc.type) {
-        case R_WASM_FUNCTION_INDEX_LEB: {
+        case R_WASM_FUNCTION_index_LEB: {
             std::string &name = this->obj->symbols[reloc.index].info.name;
             Symbol *sym = get_symbol(ctx, name);
             u32 val = sym->index;
             encode_uleb128(val, reloc_loc, 5);
         } break;
-        case R_WASM_GLOBAL_INDEX_LEB: {
+        case R_WASM_GLOBAL_index_LEB: {
             std::string &name = this->obj->symbols[reloc.index].info.name;
             Symbol *sym = get_symbol(ctx, name);
             u32 val = sym->index;
@@ -160,28 +160,28 @@ WasmLimits &ObjectFile::get_defined_memories(u32 index) {
     return memories[index - num_imported_memories];
 }
 
-bool ObjectFile::is_valid_function_symbol(u32 Index) {
-    return Index < symbols.size() && symbols[Index].is_type_function();
+bool ObjectFile::is_valid_function_symbol(u32 index) {
+    return index < symbols.size() && symbols[index].is_type_function();
 }
 
-bool ObjectFile::is_valid_table_symbol(u32 Index) {
-    return Index < symbols.size() && symbols[Index].is_type_table();
+bool ObjectFile::is_valid_table_symbol(u32 index) {
+    return index < symbols.size() && symbols[index].is_type_table();
 }
 
-bool ObjectFile::is_valid_global_symbol(u32 Index) {
-    return Index < symbols.size() && symbols[Index].is_type_global();
+bool ObjectFile::is_valid_global_symbol(u32 index) {
+    return index < symbols.size() && symbols[index].is_type_global();
 }
 
-bool ObjectFile::is_valid_tag_symbol(u32 Index) {
-    return Index < symbols.size() && symbols[Index].is_type_tag();
+bool ObjectFile::is_valid_tag_symbol(u32 index) {
+    return index < symbols.size() && symbols[index].is_type_tag();
 }
 
-bool ObjectFile::is_valid_data_symbol(u32 Index) {
-    return Index < symbols.size() && symbols[Index].is_type_data();
+bool ObjectFile::is_valid_data_symbol(u32 index) {
+    return index < symbols.size() && symbols[index].is_type_data();
 }
 
-bool ObjectFile::is_valid_section_symbol(u32 Index) {
-    return Index < symbols.size() && symbols[Index].is_type_section();
+bool ObjectFile::is_valid_section_symbol(u32 index) {
+    return index < symbols.size() && symbols[index].is_type_section();
 }
 
 static void override_symbol(Context &ctx, Symbol *sym, ObjectFile *file,
