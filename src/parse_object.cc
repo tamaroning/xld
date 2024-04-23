@@ -897,10 +897,8 @@ void ObjectFile::parse(Context &ctx) {
 
         ASSERT(sections.size() == sec_index);
         {
-            u32 copy_start = 0;
-            decodeULEB128(content.data(), &copy_start);
-            InputSection *isec = new InputSection(
-                sec_id, sec_index, this, sec_name, content, copy_start);
+            InputSection *isec =
+                new InputSection(sec_id, sec_index, this, sec_name, content);
             ctx.isec_pool.emplace_back(isec);
             this->sections.emplace_back(isec);
 

@@ -45,13 +45,13 @@ void InputFragment::apply_reloc(Context &ctx, u64 osec_content_file_offset) {
         u8 *reloc_loc = frag_base + (reloc.offset - in_offset);
 
         switch (reloc.type) {
-        case R_WASM_FUNCTION_index_LEB: {
+        case R_WASM_FUNCTION_INDEX_LEB: {
             std::string &name = this->obj->symbols[reloc.index].info.name;
             Symbol *sym = get_symbol(ctx, name);
             u32 val = sym->index;
             encode_uleb128(val, reloc_loc, 5);
         } break;
-        case R_WASM_GLOBAL_index_LEB: {
+        case R_WASM_GLOBAL_INDEX_LEB: {
             std::string &name = this->obj->symbols[reloc.index].info.name;
             Symbol *sym = get_symbol(ctx, name);
             u32 val = sym->index;
@@ -76,11 +76,11 @@ void InputFragment::apply_reloc(Context &ctx, u64 osec_content_file_offset) {
     }
 }
 
-u64 InputSection::get_size() { return span.size() - loc.copy_start; }
+u64 InputSection::get_size() { return span.size(); }
 
 void InputSection::write_to(Context &ctx, u8 *buf) {
     Debug(ctx) << "writing section: " << name << " " << obj->filename;
-    memcpy(buf, span.data() + loc.copy_start, get_size());
+    memcpy(buf, span.data(), get_size());
 }
 
 void InputSection::apply_reloc(Context &ctx, u64 osec_content_file_offset) {}

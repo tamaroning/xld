@@ -15,10 +15,8 @@ class ObjectFile;
 class InputSection {
   public:
     InputSection(u8 sec_id, u32 index, ObjectFile *obj, std::string name,
-                 std::span<const u8> span, u64 copy_start)
-        : sec_id(sec_id), index(index), obj(obj), name(name), span(span) {
-        loc.copy_start = copy_start;
-    }
+                 std::span<const u8> span)
+        : sec_id(sec_id), index(index), obj(obj), name(name), span(span) {}
 
     void write_to(Context &ctx, u8 *buf);
     u64 get_size();
@@ -31,13 +29,7 @@ class InputSection {
     std::string name;
     std::vector<WasmRelocation> relocs;
 
-    // Used for output
-    struct {
-        // offset from beggining of the content of output section
-        u64 offset = 0;
-        // the number of bytes to copy from the input section
-        u64 copy_start = 0;
-    } loc;
+    u64 out_offset = 0;
 
   private:
     std::span<const u8> span;
