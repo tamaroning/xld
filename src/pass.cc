@@ -4,11 +4,10 @@
 #include "oneapi/tbb/parallel_for.h"
 #include "oneapi/tbb/parallel_for_each.h"
 #include "wasm/object.h"
+#include "wasm/utils.h"
 #include "xld.h"
 #include "xld_private/output_elem.h"
 #include "xld_private/symbol.h"
-#include <atomic>
-#include <map>
 #include <mutex>
 #include <set>
 
@@ -63,18 +62,6 @@ void calculate_imports(Context &ctx) {
             }
         }
     });
-}
-
-static WasmInitExpr int32_const(i32 value) {
-    return WasmInitExpr{
-        .extended = false,
-        .inst =
-            {
-                .opcode = WASM_OPCODE_I32_CONST,
-                .value = {.int32 = value},
-            },
-        .body = std::nullopt,
-    };
 }
 
 static void
@@ -279,6 +266,9 @@ void setup_memory(Context &ctx) {
                    << " size: 0x" << seg.get_size();
         offset += seg.get_size();
     }
+
+    // .data.g2 .data.g3が0x00に割り当てられる場合がある
+    // FIXME:
 
     // assign virtual address to data symbols
     tbb::parallel_for_each(ctx.files, [&](InputFile *file) {

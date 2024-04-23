@@ -38,12 +38,28 @@ class OutputSegment {
 
     u32 get_size() const { return size; }
 
+    u32 get_init_flags() const { return init_flags; }
+    u32 get_memory_index() const { return memory_index; }
+    u32 get_linking_flags() const {
+        // TODO:
+        return 0;
+    }
+
+    tbb::concurrent_map<std::string_view, std::pair<InputFragment *, u32>> const
+        &
+        get_ifrag_map() const {
+        return ifrag_map;
+    }
+
     u32 p2align;
+
+    u64 out_offset = 0;
 
   private:
     std::string_view name;
     // segment name -> (input fragment, offset)
-    std::map<std::string_view, std::pair<InputFragment *, u32>> ifrag_map;
+    tbb::concurrent_map<std::string_view, std::pair<InputFragment *, u32>>
+        ifrag_map;
     u32 init_flags;
     u32 memory_index;
     u32 linking_flags;

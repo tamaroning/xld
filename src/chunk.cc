@@ -2,7 +2,9 @@
 #include "common/leb128.h"
 #include "common/log.h"
 #include "wasm/object.h"
+#include "wasm/utils.h"
 #include "xld.h"
+#include "xld_private/output_elem.h"
 
 namespace xld::wasm {
 
@@ -455,40 +457,41 @@ void CodeSection::apply_reloc(Context &ctx) {
 }
 
 u64 DataSection::compute_section_size(Context &ctx) {
-    /*
     u64 size = 0;
     size += get_varuint32_size(ctx.segments.size()); // number of data segments
 
-    for (WasmDataSegment &seg : ctx.segments) {
-        size += get_varuint32_size(seg.init_flags);
-        switch (seg.init_flags) {
+    for (auto &[name, seg] : ctx.segments) {
+        size += get_varuint32_size(seg.get_init_flags());
+        switch (seg.get_init_flags()) {
         case 0: {
-            size += get_init_expr_size(ctx, seg.offset);
-            size += get_varuint32_size(seg.content.size());
-            size += seg.content.size();
+            WasmInitExpr e = int32_const(seg.get_virtual_address());
+            size += get_init_expr_size(ctx, e);
+            size += get_varuint32_size(seg.get_size());
+            seg.out_offset = size;
+            size += seg.get_size();
         } break;
         case WASM_DATA_SEGMENT_IS_PASSIVE: {
-            size += get_varuint32_size(seg.content.size());
-            size += seg.content.size();
+            size += get_varuint32_size(seg.get_size());
+            seg.out_offset = size;
+            size += seg.get_size();
         } break;
         case WASM_DATA_SEGMENT_HAS_MEMINDEX: {
-            size += get_varuint32_size(seg.memory_index);
-            size += get_init_expr_size(ctx, seg.offset);
-            size += get_varuint32_size(seg.content.size());
-            size += seg.content.size();
+            WasmInitExpr e = int32_const(seg.get_virtual_address());
+            size += get_varuint32_size(seg.get_memory_index());
+            size += get_init_expr_size(ctx, e);
+            size += get_varuint32_size(seg.get_size());
+            seg.out_offset = size;
+            size += seg.get_size();
         } break;
         }
     }
     loc.content_size = size;
     finalize_section_size_common(size);
     return size;
-    */
     return 0;
 }
 
 void DataSection::copy_buf(Context &ctx) {
-    return;
-    /*
     u8 *buf = ctx.buf + loc.offset;
     write_byte(buf, WASM_SEC_DATA);
     // content size
@@ -496,31 +499,43 @@ void DataSection::copy_buf(Context &ctx) {
 
     // data segments
     write_varuint32(buf, ctx.segments.size());
-    for (WasmDataSegment &seg : ctx.segments) {
-        write_varuint32(buf, seg.init_flags);
-        switch (seg.init_flags) {
+    for (auto &[name, seg] : ctx.segments) {
+        write_varuint32(buf, seg.get_init_flags());
+        switch (seg.get_init_flags()) {
         case 0: {
-            write_init_expr(ctx, buf, seg.offset);
-            write_varuint32(buf, seg.content.size());
-            memcpy(buf, seg.content.data(), seg.content.size());
-            buf += seg.content.size();
+            WasmInitExpr e = int32_const(seg.get_virtual_address());
+            write_init_expr(ctx, buf, e);
+            write_varuint32(buf, seg.get_size());
+            u8 *const first_frag_start = buf;
+            for (auto &[name, p] : seg.get_ifrag_map()) {
+                auto [frag, offset] = p;
+                frag->write_to(ctx, first_frag_start + offset);
+            }
+            buf += seg.get_size();
         } break;
         case WASM_DATA_SEGMENT_IS_PASSIVE: {
-            write_varuint32(buf, seg.content.size());
-            memcpy(buf, seg.content.data(), seg.content.size());
-            buf += seg.content.size();
+            write_varuint32(buf, seg.get_size());
+            u8 *const first_frag_start = buf;
+            for (auto &[name, p] : seg.get_ifrag_map()) {
+                auto [frag, offset] = p;
+                frag->write_to(ctx, first_frag_start + offset);
+            }
+            buf += seg.get_size();
         } break;
         case WASM_DATA_SEGMENT_HAS_MEMINDEX: {
-            write_varuint32(buf, seg.memory_index);
-            write_init_expr(ctx, buf, seg.offset);
-            write_varuint32(buf, seg.content.size());
-            memcpy(buf, seg.content.data(), seg.content.size());
-            buf += seg.content.size();
+            WasmInitExpr e = int32_const(seg.get_virtual_address());
+            write_varuint32(buf, seg.get_memory_index());
+            write_init_expr(ctx, buf, e);
+            write_varuint32(buf, seg.get_size());
+            u8 *const first_frag_start = buf;
+            for (auto &[name, p] : seg.get_ifrag_map()) {
+                auto [frag, offset] = p;
+                frag->write_to(ctx, first_frag_start + offset);
+            }
+            buf += seg.get_size();
         } break;
         }
     }
-    ASSERT(buf == ctx.buf + loc.offset + loc.size);
-    */
 }
 
 void DataSection::apply_reloc(Context &ctx) {
