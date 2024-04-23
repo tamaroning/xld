@@ -4,10 +4,10 @@
 #include "common/system.h"
 #include "wasm/object.h"
 #include "xld.h"
-#include "xld_private/input_file.h"
-#include <memory>
 
 namespace xld::wasm {
+
+static void set_relocs(Context &ctx, ObjectFile *);
 
 static u32 parse_varuint32(const u8 *&data) {
     return decodeULEB128AndInc(data);
@@ -120,14 +120,16 @@ static wasm::ValType parse_val_type(const u8 *&data, u32 code) {
     return wasm::ValType(wasm::ValType::OTHERREF);
 }
 
-static InputFragment *parse_ifrag(Context &ctx, const u8 *&data,
+static InputFragment *parse_ifrag(Context &ctx, u32 sec_index, ObjectFile *obj,
+                                  const u8 *&data,
                                   const u8 *const content_beg) {
-    u32 in_offset = data - content_beg;
     u32 len = parse_varuint32(data);
+    u32 in_offset = data - content_beg;
     std::span<const u8> content{data, data + len};
     data += len;
-    InputFragment *ifrag = new InputFragment(content, in_offset);
-    ctx.ifrag_pool.push_back(std::unique_ptr<InputFragment>(ifrag));
+    InputFragment *ifrag =
+        new InputFragment(sec_index, obj, content, in_offset);
+    ctx.ifrag_pool.emplace_back(std::unique_ptr<InputFragment>(ifrag));
     return ifrag;
 }
 
@@ -310,7 +312,7 @@ void ObjectFile::parse_linking_sec(Context &ctx, const u8 *&p, const u32 size) {
                                     << " is out of range";
 
                             size_t segment_size =
-                                data_ifrags[segment_index]->span.size();
+                                data_ifrags[segment_index]->get_size();
                             if (offset > segment_size)
                                 Error(ctx)
                                     << "invalid data symbol offset: `" << name
@@ -824,7 +826,8 @@ void ObjectFile::parse(Context &ctx) {
             u32 count = parse_varuint32(p);
             while (count--) {
                 const u8 *code_start = p;
-                InputFragment *ifrag = parse_ifrag(ctx, p, content_beg);
+                InputFragment *ifrag =
+                    parse_ifrag(ctx, sec_index, this, p, content_beg);
                 this->code_ifrags.emplace_back(ifrag);
             }
         } break;
@@ -842,7 +845,8 @@ void ObjectFile::parse(Context &ctx) {
                 switch (flags) {
                 case 0: {
                     WasmInitExpr offset = parse_init_expr(ctx, p);
-                    InputFragment *ifrag = parse_ifrag(ctx, p, content_beg);
+                    InputFragment *ifrag =
+                        parse_ifrag(ctx, sec_index, this, p, content_beg);
                     this->data_ifrags.push_back(ifrag);
                     data = WasmDataSegment{
                         .init_flags = flags,
@@ -851,7 +855,8 @@ void ObjectFile::parse(Context &ctx) {
                     };
                 } break;
                 case WASM_DATA_SEGMENT_IS_PASSIVE: {
-                    InputFragment *ifrag = parse_ifrag(ctx, p, content_beg);
+                    InputFragment *ifrag =
+                        parse_ifrag(ctx, sec_index, this, p, content_beg);
                     this->data_ifrags.push_back(ifrag);
                     data = WasmDataSegment{
                         .init_flags = flags,
@@ -860,7 +865,8 @@ void ObjectFile::parse(Context &ctx) {
                 case WASM_DATA_SEGMENT_HAS_MEMINDEX: {
                     u32 mem_index = parse_varuint32(p);
                     WasmInitExpr offset = parse_init_expr(ctx, p);
-                    InputFragment *ifrag = parse_ifrag(ctx, p, content_beg);
+                    InputFragment *ifrag =
+                        parse_ifrag(ctx, sec_index, this, p, content_beg);
                     this->data_ifrags.push_back(ifrag);
                     data = WasmDataSegment{
                         .init_flags = flags,
@@ -904,6 +910,28 @@ void ObjectFile::parse(Context &ctx) {
         }
 
         sec_index++;
+    }
+
+    set_relocs(ctx, this);
+}
+
+static void set_relocs(Context &ctx, ObjectFile *obj) {
+    for (InputFragment *ifrag : obj->get_function_codes()) {
+        auto cmp = [](const WasmRelocation &a, const WasmRelocation &b) {
+            return a.offset < b.offset;
+        };
+        std::vector<WasmRelocation> &relocs =
+            obj->sections[ifrag->sec_index]->relocs;
+        bool is_sorted = std::is_sorted(relocs.begin(), relocs.end(), cmp);
+        if (!is_sorted)
+            Error(ctx) << "relocations are not sorted";
+
+        for (WasmRelocation &reloc : relocs) {
+            if (ifrag->in_offset <= reloc.offset &&
+                reloc.offset <= ifrag->in_offset + ifrag->get_size()) {
+                ifrag->relocs.emplace_back(reloc);
+            }
+        }
     }
 }
 

@@ -20,6 +20,7 @@ class OutputElem {
     u64 index = 0xdeadbeaf;
 };
 
+/*
 class OutputSegment {
   public:
     i32 virtualal_address;
@@ -36,5 +37,6 @@ class OutputSegment {
     uint32_t p2align;
     uint32_t linking_flags;
 };
+*/
 
 } // namespace xld::wasm

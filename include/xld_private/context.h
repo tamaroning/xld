@@ -75,7 +75,7 @@ struct Context {
     tbb::concurrent_vector<Symbol *> globals;
     tbb::concurrent_vector<Symbol *> data_symbols;
     tbb::concurrent_vector<WasmDataSegment> segments;
-    tbb::concurrent_vector<OutputSegment> output_segments;
+    //tbb::concurrent_vector<OutputSegment> output_segments;
 
     tbb::concurrent_vector<Symbol *> export_functions;
     tbb::concurrent_vector<Symbol *> export_globals;

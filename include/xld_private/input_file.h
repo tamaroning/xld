@@ -45,41 +45,27 @@ class InputSection {
 
 class InputFragment {
   public:
-    InputFragment(std::span<const u8> span, u64 in_offset)
-        : span(span), in_offset(in_offset) {}
+    InputFragment(u32 sec_index, ObjectFile *obj, std::span<const u8> span,
+                  u64 in_offset)
+        : sec_index(sec_index), obj(obj), span(span), in_offset(in_offset) {}
 
     void write_to(Context &ctx, u8 *buf);
     u64 get_size();
     void apply_reloc(Context &ctx, u64 osec_content_offset);
 
-    std::span<const u8> span;
+    u32 sec_index;
+    ObjectFile *obj;
     std::vector<WasmRelocation> relocs;
     // offset from beginning of the content of the input section
+    // not pointing the first number of bytes instead the following content.
     u64 in_offset = 0;
     // offset from beginning of the content of the output section
     u64 out_offset = 0;
-};
+    u64 out_size_offset = 0;
 
-/*
-// Input fragment which are relocatable. e.g. a function code, a data entry
-class InputFragment {
-  public:
-    InputFragment(u8 sec_id, std::span<const u8> span, u32 in_offset)
-        : sec_id(sec_id), span(span) {
-        loc.in_offset = in_offset;
-    }
-
-    u8 sec_id;
+  private:
     std::span<const u8> span;
-
-    struct {
-        // offset from beggining of the content of input section
-        u32 in_offset;
-        // offset from beggining of the content of output section
-        u64 out_offset = 0;
-    } loc;
 };
-*/
 
 class InputFile {
   public:
@@ -113,6 +99,9 @@ class ObjectFile : public InputFile {
 
     bool is_defined_function(u32 index);
     WasmFunction &get_defined_function(u32 index);
+    InputFragment *get_function_code(u32 index);
+    std::vector<InputFragment *> &get_function_codes();
+
     bool is_defined_global(u32 index);
     WasmGlobal &get_defined_global(u32 index);
     bool is_defined_memories(u32 index);
@@ -141,12 +130,8 @@ class ObjectFile : public InputFile {
     std::vector<InputSection *> sections;
     std::vector<InputSection *> customs;
 
-    std::vector<InputFragment *> code_ifrags;
-    std::vector<InputFragment *> data_ifrags;
-
     std::vector<WasmSignature> signatures;
     std::vector<WasmImport> imports;
-    std::vector<WasmFunction> functions;
     // TODO: table section
     std::vector<WasmLimits> memories;
     std::vector<WasmGlobal> globals;
@@ -158,6 +143,7 @@ class ObjectFile : public InputFile {
     // from the "datacount" and "data" sections
     u32 data_count = 0;
     std::vector<WasmDataSegment> data_segments;
+    std::vector<InputFragment *> data_ifrags;
 
     // from the "linking" section
     WasmLinkingData linking_data;
@@ -169,6 +155,9 @@ class ObjectFile : public InputFile {
 
   private:
     ObjectFile(Context &ctx, const std::string &filename, MappedFile *mf);
+
+    std::vector<WasmFunction> functions;
+    std::vector<InputFragment *> code_ifrags;
 };
 
 } // namespace xld::wasm

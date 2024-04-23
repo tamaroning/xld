@@ -8,28 +8,6 @@
 
 namespace xld::wasm {
 
-void InputFragment::write_to(Context &ctx, u8 *buf) {
-    memcpy(buf, span.data(), get_size());
-}
-
-u64 InputFragment::get_size() { return span.size(); }
-
-void InputFragment::apply_reloc(Context &ctx, u64 osec_content_offset) {
-    // TODO:
-}
-
-u64 InputSection::get_size() { return span.size() - loc.copy_start; }
-
-void InputSection::write_to(Context &ctx, u8 *buf) {
-    /*
-    if (wrote.exchange(true))
-        return;
-        */
-
-    Debug(ctx) << "writing section: " << name << " " << obj->filename;
-    memcpy(buf, span.data() + loc.copy_start, get_size());
-}
-
 #define WASM_RELOC(x, y)                                                       \
     case (x):                                                                  \
         return (#x);
@@ -44,12 +22,13 @@ static std::string_view get_reloc_type_name(u8 type) {
 
 #undef WASM_RELOC
 
-void InputSection::apply_reloc(Context &ctx, u64 osec_content_file_offset) {
+void InputFragment::write_to(Context &ctx, u8 *buf) {
+    memcpy(buf, span.data(), get_size());
+}
 
-    // FIXME:
-    // if (reloc_applied.exchange(true))
-    //    return;
+u64 InputFragment::get_size() { return span.size(); }
 
+void InputFragment::apply_reloc(Context &ctx, u64 osec_content_file_offset) {
     // https://github.com/WebAssembly/tool-conventions/blob/main/Linking.md
     // Note that for all relocation types, the bytes being relocated:
     //   from offset to offset + 5 for LEB/SLEB relocations;
@@ -58,12 +37,12 @@ void InputSection::apply_reloc(Context &ctx, u64 osec_content_file_offset) {
     //   or from offset to offset + 8 for I64;
     //
     // For R_WASM_MEMORY_ADDR_*, R_WASM_FUNCTION_OFFSET_I32, and
-    // R_WASM_SECTION_OFFSET_I32 relocations (and their 64-bit counterparts) the
-    // following field is additionally present:
+    // R_WASM_SECTION_OFFSET_I32 relocations (and their 64-bit counterparts)
+    // the following field is additionally present:
     //    addend varint32: addend to add to the address
-    u8 *isec_base = ctx.buf + osec_content_file_offset + loc.offset;
+    u8 *frag_base = ctx.buf + osec_content_file_offset + out_offset;
     for (WasmRelocation &reloc : relocs) {
-        u8 *reloc_loc = isec_base + (reloc.offset - loc.copy_start);
+        u8 *reloc_loc = frag_base + (reloc.offset - in_offset);
 
         switch (reloc.type) {
         case R_WASM_FUNCTION_INDEX_LEB: {
@@ -91,12 +70,20 @@ void InputSection::apply_reloc(Context &ctx, u64 osec_content_file_offset) {
         {
             std::string &name = this->obj->symbols[reloc.index].info.name;
             Symbol &sym = *get_symbol(ctx, name);
-            Debug(ctx) << "- reloc for symbol: " << sym.name
-                       << ", sec=" << this->name << " ("
+            Debug(ctx) << "- reloc for symbol: " << sym.name << " ("
                        << get_reloc_type_name(reloc.type) << ")";
         }
     }
 }
+
+u64 InputSection::get_size() { return span.size() - loc.copy_start; }
+
+void InputSection::write_to(Context &ctx, u8 *buf) {
+    Debug(ctx) << "writing section: " << name << " " << obj->filename;
+    memcpy(buf, span.data() + loc.copy_start, get_size());
+}
+
+void InputSection::apply_reloc(Context &ctx, u64 osec_content_file_offset) {}
 
 InputFile::InputFile(Context &ctx, const std::string &filename, MappedFile *mf)
     : mf(mf), filename(filename) {
@@ -139,6 +126,16 @@ WasmFunction &ObjectFile::get_defined_function(u32 index) {
     ASSERT(index >= num_imported_functions &&
            index < num_imported_functions + functions.size());
     return functions[index - num_imported_functions];
+}
+
+InputFragment *ObjectFile::get_function_code(u32 index) {
+    ASSERT(index >= num_imported_functions &&
+           index < num_imported_functions + functions.size());
+    return code_ifrags[index - num_imported_functions];
+}
+
+std::vector<InputFragment *> &ObjectFile::get_function_codes() {
+    return code_ifrags;
 }
 
 bool ObjectFile::is_defined_global(u32 index) {
@@ -192,8 +189,8 @@ static void override_symbol(Context &ctx, Symbol *sym, ObjectFile *file,
     sym->file = file;
     sym->wsym = wsym;
     sym->elem_index = wsym.info.value.element_index;
-    if (wsym.is_type_function())
-        sym->ifrag = file->code_ifrags[sym->elem_index];
+    if (wsym.is_type_function() && file->is_defined_function(sym->elem_index))
+        sym->ifrag = file->get_function_code(sym->elem_index);
     if (wsym.is_type_data())
         sym->ifrag = file->data_ifrags[sym->elem_index];
 

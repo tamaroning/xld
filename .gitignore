@@ -11,6 +11,8 @@ build/
 **/*.tar.gz
 **/*/*imports
 **/*.out
+#gdb
+**/*.xld*
 
 examples/
 

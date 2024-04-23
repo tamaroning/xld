@@ -417,6 +417,9 @@ u64 CodeSection::compute_section_size(Context &ctx) {
     size += get_varuint32_size(ctx.functions.size()); // number of code
 
     for (auto f : ctx.functions) {
+        Debug(ctx) << "computing code size for " << f->name << " ("
+                   << f->ifrag->get_size() << " bytes)";
+        f->ifrag->out_size_offset = size;
         size += get_varuint32_size(f->ifrag->get_size());
         f->ifrag->out_offset = size;
         size += f->ifrag->get_size();
@@ -437,7 +440,8 @@ void CodeSection::copy_buf(Context &ctx) {
     // functions
     write_varuint32(buf, ctx.functions.size());
     tbb::parallel_for_each(ctx.functions, [&](Symbol *f) {
-        write_varuint32(buf, f->ifrag->get_size());
+        u8 *size_buf = content_beg + f->ifrag->out_size_offset;
+        write_varuint32(size_buf, f->ifrag->get_size());
         f->ifrag->write_to(ctx, content_beg + f->ifrag->out_offset);
     });
 }

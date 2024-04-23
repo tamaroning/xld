@@ -279,10 +279,10 @@ void setup_memory(Context &ctx) {
                 seg.memory_index = 0;
                 offset = align(offset, seg.p2align);
                 Debug(ctx) << "Data segment: " << seg_index << " offset: 0x"
-                           << offset << " size: 0x" << seg_ifrag->span.size();
+                           << offset << " size: 0x" << seg_ifrag->get_size();
                 seg_offset = offset;
                 seg.offset = int32_const(offset);
-                offset += seg_ifrag->span.size();
+                offset += seg_ifrag->get_size();
                 ctx.segments.emplace_back(seg);
                 visited_segs.insert({seg_index, seg_offset});
             }
