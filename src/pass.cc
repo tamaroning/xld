@@ -229,7 +229,7 @@ void setup_memory(Context &ctx) {
     // TODO: __table_base
 
     // merge data fragments
-    tbb::parallel_for_each(ctx.files, [&](InputFile *file) {
+    for (InputFile *file : ctx.files) {
         if (file->kind != InputFile::Object)
             return;
         ObjectFile *obj = static_cast<ObjectFile *>(file);
@@ -256,7 +256,7 @@ void setup_memory(Context &ctx) {
                 oseg->merge(ctx, seg, seg_ifrag);
             }
         }
-    });
+    }
 
     // assign offset to segments
     for (auto &[name, seg] : ctx.segments) {
@@ -266,9 +266,6 @@ void setup_memory(Context &ctx) {
                    << " size: 0x" << seg.get_size();
         offset += seg.get_size();
     }
-
-    // .data.g2 .data.g3が0x00に割り当てられる場合がある
-    // FIXME:
 
     // assign virtual address to data symbols
     tbb::parallel_for_each(ctx.files, [&](InputFile *file) {
@@ -295,6 +292,9 @@ void setup_memory(Context &ctx) {
                 oseg_va + frag_offset + wsym.info.value.data_ref.offset;
             Debug(ctx) << "Data symbol: " << sym->name << " va: 0x"
                        << sym->virtual_address;
+            Debug(ctx) << "oseg_va: " << oseg_va
+                       << " frag_offset: " << frag_offset
+                       << " offset: " << wsym.info.value.data_ref.offset;
         }
     });
 
