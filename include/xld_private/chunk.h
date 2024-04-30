@@ -122,6 +122,17 @@ class ExportSection : public Chunk {
     void copy_buf(Context &ctx) override;
 };
 
+class ElemSection : public Chunk {
+  public:
+    ElemSection() {
+        this->name = "elem";
+        sec_id = WASM_SEC_ELEM;
+    }
+
+    u64 compute_section_size(Context &ctx) override;
+    void copy_buf(Context &ctx) override;
+};
+
 class DataCountSection : public Chunk {
   public:
     DataCountSection() {

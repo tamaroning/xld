@@ -6,6 +6,7 @@
 #include "wasm/object.h"
 #include "wasm/utils.h"
 #include "xld.h"
+#include "xld_private/input_file.h"
 #include "xld_private/output_elem.h"
 #include "xld_private/symbol.h"
 #include <mutex>
@@ -106,15 +107,7 @@ void create_internal_file(Context &ctx) {
                                         WASM_SYMBOL_VISIBILITY_HIDDEN);
     }
 
-    // __indirect_function_table
-    {
-        ctx.indirect_function_table = {
-            .elem_type = ValType(WASM_TYPE_FUNCREF),
-            .limits = WasmLimits{.flags = WASM_LIMITS_FLAG_HAS_MAX,
-                                 .minimum = 1,
-                                 .maximum = 1},
-        };
-    }
+    // __indirect_function_table is set in `setup_indirect_functions`
 
     ctx.files.insert(ctx.files.begin(), obj);
 }
@@ -133,12 +126,14 @@ void create_synthetic_sections(Context &ctx) {
     push(ctx.memory = new MemorySection());
     push(ctx.global = new GlobalSection());
     push(ctx.export_ = new ExportSection());
+    push(ctx.elem = new ElemSection());
     push(ctx.data_count = new DataCountSection());
     push(ctx.code = new CodeSection());
     push(ctx.data_sec = new DataSection());
     push(ctx.name = new NameSection());
+}
 
-    tbb::concurrent_set<Symbol *> saw;
+void add_definitions(Context &ctx) {
     tbb::parallel_for_each(ctx.files, [&](InputFile *file) {
         if (file->kind != InputFile::Object)
             return;
@@ -216,6 +211,46 @@ void calculate_types(Context &ctx) {
     }
 }
 
+void setup_indirect_functions(Context &ctx) {
+    // __indirect_function_table
+    ctx.__indirect_function_table = OutputElem{ValType(WASM_TYPE_FUNCREF)};
+    ctx.__indirect_function_table.flags = 0;
+    tbb::parallel_for_each(ctx.files, [&](InputFile *file) {
+        if (file->kind != InputFile::Object)
+            return;
+        ObjectFile *obj = static_cast<ObjectFile *>(file);
+
+        for (InputSection *isec : obj->sections) {
+            for (auto &reloc : isec->relocs) {
+                switch (reloc.type) {
+                case R_WASM_TABLE_INDEX_I32:
+                case R_WASM_TABLE_INDEX_I64:
+                case R_WASM_TABLE_INDEX_SLEB:
+                case R_WASM_TABLE_INDEX_SLEB64: {
+                    std::string &name = obj->symbols[reloc.index].info.name;
+                    Symbol *sym = get_symbol(ctx, name);
+                    if (sym->is_defined()) {
+                        ctx.__indirect_function_table.elements.emplace_back(
+                            sym);
+                    }
+                } break;
+                default:
+                    break;
+                }
+            }
+        }
+    });
+
+    ASSERT(ctx.tables.empty());
+    ctx.tables.push_back(WasmTableType{
+        .elem_type = ValType(WASM_TYPE_FUNCREF),
+        .limits = WasmLimits{
+            .flags = 0,
+            // TODO: reserve the first index maybe??
+            .minimum = ctx.__indirect_function_table.elements.size() + 1,
+            .maximum = 0}});
+}
+
 void setup_memory(Context &ctx) {
     Debug(ctx) << "Setting up memory layout";
     i32 offset = 0;
@@ -227,7 +262,8 @@ void setup_memory(Context &ctx) {
                                        .maximum = kMaxMemoryPages};
     }
 
-    // At least, we need to set __memory_base, __table_base, and __stack_pointer
+    // At least, we need to set __memory_base, __table_base, and
+    // __stack_pointer
     // https://github.com/WebAssembly/tool-conventions/blob/main/DynamicLinking.md#interface-and-usage
     // TODO: __memory_base
     // TODO: __table_base

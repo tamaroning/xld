@@ -13,12 +13,13 @@ static void write_varuint32(u8 *&buf, u32 value) {
 }
 
 static u32 get_varuint32_size(u32 value) { return get_uleb128_size(value); }
-
+/*
 static void write_varuint64(u8 *&buf, u64 value) {
     buf += encode_uleb128(value, buf);
 }
 
 static u32 get_varuint64_size(u64 value) { return get_uleb128_size(value); }
+*/
 
 static void write_varint32(u8 *&buf, i32 value) {
     buf += encode_sleb128(value, buf);
@@ -289,9 +290,12 @@ void GlobalSection::copy_buf(Context &ctx) {
 
 u64 TableSection::compute_section_size(Context &ctx) {
     u64 size = 0;
-    size += get_varuint32_size(1); // number of tables
-    size++;                        // reftype
-    size += get_limits_size(ctx.indirect_function_table.limits);
+    size += get_varuint32_size(ctx.tables.size()); // number of tables
+
+    for (auto &table : ctx.tables) {
+        size++; // elemtype
+        size += get_limits_size(table.limits);
+    }
 
     loc.content_size = size;
     finalize_section_size_common(size);
@@ -304,11 +308,11 @@ void TableSection::copy_buf(Context &ctx) {
     // content size
     write_varuint32(buf, loc.content_size);
 
-    // Only indirect_function_table is supported
-    write_byte(buf, 1);                                     // number of tables
-    write_byte(buf, ctx.indirect_function_table.elem_type); // reftype
-    write_limits(buf, ctx.indirect_function_table.limits);
-
+    write_byte(buf, ctx.tables.size()); // number of tables
+    for (auto &table : ctx.tables) {
+        write_byte(buf, table.elem_type);
+        write_limits(buf, table.limits);
+    }
     ASSERT(buf == ctx.buf + loc.offset + loc.size);
 }
 
@@ -388,6 +392,51 @@ void ExportSection::copy_buf(Context &ctx) {
         write_name(buf, sym->name);
         write_byte(buf, WASM_EXTERNAL_GLOBAL);
         write_varuint32(buf, sym->index);
+    }
+
+    ASSERT(buf == ctx.buf + loc.offset + loc.size);
+}
+
+u64 ElemSection::compute_section_size(Context &ctx) {
+    u64 size = 0;
+    size += get_varuint32_size(1); // number of elem segments
+
+    // __indirect_function_table
+    {
+        size += get_varuint32_size(ctx.__indirect_function_table.flags);
+        // Starts from index=1
+        WasmInitExpr offset = int32_const(1);
+        size += get_init_expr_size(ctx, offset);
+        size +=
+            get_varuint32_size(ctx.__indirect_function_table.elements.size());
+        for (auto &elem : ctx.__indirect_function_table.elements) {
+            size += get_varuint32_size(elem->index);
+        }
+    }
+
+    loc.content_size = size;
+    finalize_section_size_common(size);
+    return size;
+}
+
+void ElemSection::copy_buf(Context &ctx) {
+    u8 *buf = ctx.buf + loc.offset;
+    write_byte(buf, WASM_SEC_ELEM);
+    // content size
+    write_varuint32(buf, loc.content_size);
+
+    write_varuint32(buf, 1); // number of elem segments
+
+    // __indirect_function_table
+    {
+        write_varuint32(buf, ctx.__indirect_function_table.flags);
+        // Starts from index=1
+        WasmInitExpr offset = int32_const(1);
+        write_init_expr(ctx, buf, offset);
+        write_varuint32(buf, ctx.__indirect_function_table.elements.size());
+        for (auto &elem : ctx.__indirect_function_table.elements) {
+            write_varuint32(buf, elem->index);
+        }
     }
 
     ASSERT(buf == ctx.buf + loc.offset + loc.size);

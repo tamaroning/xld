@@ -63,12 +63,13 @@ struct Context {
     CodeSection *code = nullptr;
     DataCountSection *data_count = nullptr;
     ExportSection *export_ = nullptr;
+    ElemSection *elem = nullptr;
     DataSection *data_sec = nullptr;
     NameSection *name = nullptr;
 
     // Linker synthesized symbols which needs special handling.
     // Other linker synthesized symbols reside in the internal object file.
-    WasmTableType indirect_function_table;
+    OutputElem __indirect_function_table{ValType(0)};
     WasmLimits output_memory;
     WasmExport output_memory_export;
 
@@ -80,6 +81,7 @@ struct Context {
     tbb::concurrent_vector<Symbol *> globals;
     tbb::concurrent_vector<Symbol *> data_symbols;
     tbb::concurrent_vector<OutputSegment> output_segments;
+    tbb::concurrent_vector<WasmTableType> tables;
 
     tbb::concurrent_vector<Symbol *> export_functions;
     tbb::concurrent_vector<Symbol *> export_globals;

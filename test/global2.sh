@@ -9,6 +9,10 @@ int main() {
     return g();
 }
 
+int dummy() {
+    return 0;
+}
+
 int f() {
     return 42;
 }
@@ -17,4 +21,4 @@ EOF
 
 $XLD $t/a.o --export-all -o $t/a.wasm
 
-node main.js $t/a.wasm | grep -q "11"
+node main.js $t/a.wasm | grep -q "42"

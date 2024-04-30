@@ -94,17 +94,22 @@ int linker_main(int argc, char **argv) {
 
     check_undefined(ctx);
 
-    calculate_imports(ctx);
-
     ctx.checkpoint();
-
-    // compute_import_export(ctx);
 
     // Create linker-synthesized sections
     create_synthetic_sections(ctx);
 
-    assign_index(ctx);
+    // Calculate and add imported functions and globals
+    // TODO: data?
+    calculate_imports(ctx);
+    // calculate_exports(ctx);
 
+    // Add definitions of functions, globals, and data
+    add_definitions(ctx);
+
+    assign_index(ctx);
+    // Calculate necessary types for functions and globals
+    // then assign indices to their `Symbol`.
     calculate_types(ctx);
 
     // Make sure that there's no duplicate symbol
@@ -140,7 +145,8 @@ int linker_main(int argc, char **argv) {
 
     // Set actual addresses to linker-synthesized symbols.
     // fix_synthetic_symbols(ctx);
-
+    
+    setup_indirect_functions(ctx);
     setup_memory(ctx);
 
     // At this point, both memory and file layouts are fixed.

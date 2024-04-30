@@ -3,11 +3,11 @@
 #include "common/integers.h"
 #include "wasm/object.h"
 #include "xld_private/input_file.h"
-#include <map>
 
 namespace xld::wasm {
 
 class ObjectFile;
+class Symbol;
 
 class OutputSegment {
   public:
@@ -65,6 +65,17 @@ class OutputSegment {
     u32 linking_flags;
     u32 size;
     u32 va;
+};
+
+// Represents Elem section for now
+class OutputElem {
+  public:
+    explicit OutputElem(ValType elem_type) : elem_type(elem_type) {}
+    OutputElem(const OutputElem &) = default;
+
+    ValType elem_type;
+    std::vector<Symbol *> elements;
+    u32 flags = 0;
 };
 
 } // namespace xld::wasm

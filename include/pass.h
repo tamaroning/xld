@@ -1,6 +1,5 @@
 #pragma once
 #include "xld.h"
-#include "xld_private/chunk.h"
 
 namespace xld::wasm {
 
@@ -14,9 +13,13 @@ void calculate_imports(Context &);
 
 void create_synthetic_sections(Context &);
 
+void add_definitions(Context &);
+
 void assign_index(Context &);
 
 void calculate_types(Context &);
+
+void setup_indirect_functions(Context &);
 
 void setup_memory(Context &);
 
