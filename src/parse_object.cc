@@ -354,6 +354,30 @@ void ObjectFile::parse_linking_sec(Context &ctx, const u8 *&p, const u32 size) {
                 linking_data.init_functions.push_back(init);
             }
         } break;
+        case WASM_COMDAT_INFO: {
+            u32 count = parse_varuint32(p);
+            while (count--) {
+                std::string name = parse_name(p);
+                // flags, currently ignored.
+                parse_varuint32(p);
+                u32 num_syms = parse_varuint32(p);
+                while (num_syms--) {
+                    u8 kind = *p;
+                    p++;
+                    u32 index = parse_varuint32(p);
+                    switch (kind) {
+                    case WASM_COMDAT_FUNCTION:
+                        if (!is_defined_function(index))
+                            Error(ctx) << "invalid function symbol";
+                        break;
+                    default:
+                        break;
+                    }
+                    // TODO: deal with COMDAT
+                }
+            }
+
+        } break;
         default: {
             Error(ctx) << "TODO: Unknown linking entry type: " << (int)type;
             return;

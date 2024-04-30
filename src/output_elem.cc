@@ -11,6 +11,8 @@ OutputSegment *OutputSegment::get_or_create(Context &ctx,
     std::string_view name_;
     if (name.starts_with(".data."))
         name_ = ".data";
+    else if (name.starts_with(".bss."))
+        name_ = ".bss";
     else
         Fatal(ctx) << "Unknown segment name: " << name;
 
