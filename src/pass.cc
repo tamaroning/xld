@@ -259,10 +259,10 @@ void setup_ctors(Context &ctx) {
     for (Symbol *f : ctx.functions) {
         if (f->is_undefined())
             continue;
-        if (!f->wsym.value().init_func_priority.has_value())
+        if (!f->wsym.value().info.init_func_priority.has_value())
             continue;
         Debug(ctx) << "ctor: " << f->name;
-        u32 priority = f->wsym.value().init_func_priority.value();
+        u32 priority = f->wsym.value().info.init_func_priority.value();
         map[priority].push_back(f);
     }
 
