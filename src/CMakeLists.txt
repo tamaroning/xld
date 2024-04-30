@@ -15,4 +15,10 @@ target_link_libraries(xld PRIVATE
     tbb
     )
 
+if(MSVC)
+  target_compile_options(xld PRIVATE /W4 /WX)
+else()
+  target_compile_options(xld PRIVATE -Wall -Wpedantic)
+endif()
+
 add_subdirectory(common)

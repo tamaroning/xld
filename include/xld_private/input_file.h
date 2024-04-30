@@ -39,7 +39,7 @@ class InputFragment {
   public:
     InputFragment(u32 sec_index, ObjectFile *obj, std::span<const u8> span,
                   u64 in_offset)
-        : sec_index(sec_index), obj(obj), span(span), in_offset(in_offset) {}
+        : sec_index(sec_index), obj(obj), in_offset(in_offset), span(span) {}
 
     void write_to(Context &ctx, u8 *buf);
     u64 get_size();

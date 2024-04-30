@@ -84,12 +84,16 @@ void create_internal_file(Context &ctx) {
     // https://github.com/kubkon/zld/blob/e4d9b667b21e51cb3882c8d113c0adb739e1c86f/src/Wasm.zig#L951
 
     // TODO: add synthetic symbols
+    /*
     static WasmGlobalType global_type_i32 = {ValType(WASM_TYPE_I32), false};
     static WasmGlobalType global_type_i64 = {ValType(WASM_TYPE_I64), false};
+    */
     static WasmGlobalType mutable_global_type_i32 = {ValType(WASM_TYPE_I32),
                                                      true};
-    static WasmGlobalType mutable_global_typeI64 = {ValType(WASM_TYPE_I64),
+    /*
+    static WasmGlobalType mutable_global_type_i64 = {ValType(WASM_TYPE_I64),
                                                     true};
+    */
 
     // __stack_pointer
     {

@@ -12,9 +12,11 @@ static void set_relocs(Context &ctx, ObjectFile *);
 static u32 parse_varuint32(const u8 *&data) {
     return decodeULEB128AndInc(data);
 }
+/*
 static u64 parse_varuint64(const u8 *&data) {
     return decodeULEB128AndInc(data);
 }
+*/
 static i32 parse_varint32(const u8 *&data) { return decodeSLEB128AndInc(data); }
 static i64 parse_varint64(const u8 *&data) { return decodeSLEB128AndInc(data); }
 
@@ -39,7 +41,7 @@ std::vector<T> parse_vec_varlen(const u8 *&data,
                                 std::function<T(const u8 *&)> f) {
     u32 num = parse_varuint32(data);
     std::vector<T> v;
-    for (int i = 0; i < num; i++) {
+    for (u32 i = 0; i < num; i++) {
         v.push_back(f(data));
     }
     return v;
@@ -47,7 +49,7 @@ std::vector<T> parse_vec_varlen(const u8 *&data,
 
 static void foreach_vec(const u8 *&data, std::function<void(const u8 *&)> f) {
     u32 num = parse_varuint32(data);
-    for (int i = 0; i < num; i++) {
+    for (u32 i = 0; i < num; i++) {
         f(data);
     }
 }
@@ -65,15 +67,6 @@ static std::vector<T> parse_vec(const u8 *&data) {
     }
     data += sizeof(T) * num;
     return vec;
-}
-
-static std::vector<u32> parse_uleb128_vec(Context &ctx, const u8 *&data) {
-    u32 num = parse_varuint32(data);
-    std::vector<u32> v;
-    for (int i = 0; i < num; i++) {
-        v.push_back(parse_varuint32(data));
-    }
-    return v;
 }
 
 // Parse name and increment pointer
@@ -196,8 +189,8 @@ void ObjectFile::parse_linking_sec(Context &ctx, const u8 *&p, const u32 size) {
     while (p < beg + size) {
         u8 type = *p;
         p++;
-        // TODO: use result
-        u32 payload_len = parse_varuint32(p);
+        // TODO: use result?
+        parse_varuint32(p);
 
         // TODO: refactor
         // https://github.com/llvm/llvm-project/blob/e6f63a942a45e3545332cd9a43982a69a4d5667b/llvm/lib/Object/WasmObjectFile.cpp#L709
@@ -378,7 +371,7 @@ void ObjectFile::parse_reloc_sec(Context &ctx, const u8 *&p, const u32 size) {
             << "relocations must refer to the code or data or custom section ("
             << this->filename << ")";
     u32 count = parse_varuint32(p);
-    for (int i = 0; i < count; i++) {
+    for (u32 i = 0; i < count; i++) {
         u8 type = *p;
         p++;
         u32 offset = parse_varuint32(p);
@@ -422,7 +415,8 @@ void ObjectFile::parse_name_sec(Context &ctx, const u8 *&p, const u32 size) {
 
         u8 subsec_kind = *p;
         p++;
-        u32 subsec_size = parse_varuint32(p);
+        // TODO: use result? size of subsection
+        parse_varuint32(p);
 
         switch (subsec_kind) {
         case WASM_NAMES_MODULE: {
@@ -453,7 +447,7 @@ void ObjectFile::parse_name_sec(Context &ctx, const u8 *&p, const u32 size) {
         case WASM_NAMES_GLOBAL: {
             // indirectnamemap
             u32 count = parse_varuint32(p);
-            for (int j = 0; j < count; j++) {
+            for (u32 j = 0; j < count; j++) {
                 u32 global_index = parse_varuint32(p);
                 std::string name = parse_name(p);
                 // TODO:
@@ -592,7 +586,6 @@ void ObjectFile::parse(Context &ctx) {
 
         switch (sec_id) {
         case WASM_SEC_CUSTOM: {
-            const u8 *cont_begin = p;
             sec_name = parse_name(p);
             u32 custom_content_size = (content_beg + content_size) - p;
             // Debug(ctx) << "parsing " << sec_name;
@@ -610,7 +603,6 @@ void ObjectFile::parse(Context &ctx) {
         } break;
         case WASM_SEC_TYPE: {
             std::function<WasmSignature(const u8 *&)> f = [&](const u8 *&data) {
-                const u8 *type_begin = data;
                 ASSERT(*data == 0x60 && "type section must start with 0x60");
                 data++;
                 // discard results
@@ -753,6 +745,7 @@ void ObjectFile::parse(Context &ctx) {
                 if (has_init_exprs) {
                     while (num_elems--) {
                         wasm::WasmInitExpr expr = parse_init_expr(ctx, p);
+                        segment.offset = expr;
                     }
                 } else {
                     while (num_elems--) {
@@ -808,7 +801,6 @@ void ObjectFile::parse(Context &ctx) {
         } break;
         case WASM_SEC_GLOBAL: {
             std::function<void(const u8 *&)> f = [&](const u8 *&data) {
-                const u8 *beg = data;
                 const ValType val_type{*data};
                 data++;
                 const bool mut = *data;
@@ -825,7 +817,6 @@ void ObjectFile::parse(Context &ctx) {
         case WASM_SEC_CODE: {
             u32 count = parse_varuint32(p);
             while (count--) {
-                const u8 *code_start = p;
                 InputFragment *ifrag =
                     parse_ifrag(ctx, sec_index, this, p, content_beg);
                 this->code_ifrags.emplace_back(ifrag);
@@ -936,7 +927,7 @@ static void set_relocs(Context &ctx, ObjectFile *obj) {
 void ObjectFile::dump(Context &ctx) {
     Debug(ctx) << "=== " << this->mf->name << " ===";
     Debug(ctx) << "Type section";
-    for (int i = 0; i < this->signatures.size(); i++) {
+    for (u32 i = 0; i < this->signatures.size(); i++) {
         Debug(ctx) << "  - type[" << i << "]";
     }
     Debug(ctx) << "Import section";
@@ -971,7 +962,7 @@ void ObjectFile::dump(Context &ctx) {
         }
     }
     Debug(ctx) << "Function section";
-    for (int i = 0; i < this->functions.size(); i++) {
+    for (u32 i = 0; i < this->functions.size(); i++) {
         const WasmFunction &func = this->functions[i];
         Debug(ctx) << "  - func[" << i + num_imported_functions
                    << "]: " << func.symbol_name << " (type[" << func.sig_index
@@ -979,19 +970,19 @@ void ObjectFile::dump(Context &ctx) {
                    << ")";
     }
     Debug(ctx) << "Memory section";
-    for (int i = 0; i < this->memories.size(); i++) {
+    for (u32 i = 0; i < this->memories.size(); i++) {
         const WasmLimits &mem = this->memories[i];
         Debug(ctx) << "  - memory[" << i + num_imported_memories
                    << "]: min=" << mem.minimum << ", max=" << mem.maximum;
     }
     Debug(ctx) << "Global section";
-    for (int i = 0; i < this->globals.size(); i++) {
+    for (u32 i = 0; i < this->globals.size(); i++) {
         const WasmGlobal &global = this->globals[i];
         Debug(ctx) << "  - global[" << i + num_imported_globals
                    << "]: " << global.symbol_name;
     }
     Debug(ctx) << "Export section";
-    for (int i = 0; i < this->exports.size(); i++) {
+    for (u32 i = 0; i < this->exports.size(); i++) {
         Debug(ctx) << "  - export[" << i << "]: " << this->exports[i].name;
     }
     Debug(ctx) << "Code section";
@@ -1001,12 +992,12 @@ void ObjectFile::dump(Context &ctx) {
     }
     */
     Debug(ctx) << "Data section";
-    for (int i = 0; i < this->data_segments.size(); i++) {
-        WasmDataSegment &data_seg = this->data_segments[i];
+    for (u32 i = 0; i < this->data_segments.size(); i++) {
+        // WasmDataSegment &data_seg = this->data_segments[i];
         Debug(ctx) << "  - data[" << i << "]";
     }
     Debug(ctx) << "Linking-Symbol section";
-    for (int i = 0; i < this->symbols.size(); i++) {
+    for (u32 i = 0; i < this->symbols.size(); i++) {
         WasmSymbol sym = this->symbols[i];
         std::string symname = sym.info.import_name.has_value()
                                   ? (sym.info.import_module.value() + "." +
@@ -1015,7 +1006,7 @@ void ObjectFile::dump(Context &ctx) {
         Debug(ctx) << "  - symbol[" << i << "]: " << symname;
     }
     Debug(ctx) << "Linking-Data section";
-    for (int i = 0; i < this->data_segments.size(); i++) {
+    for (u32 i = 0; i < this->data_segments.size(); i++) {
         WasmDataSegment &data_seg = this->data_segments[i];
         Debug(ctx) << "  - data[" << i << "]: " << data_seg.name;
     }
