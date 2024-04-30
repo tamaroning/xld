@@ -55,7 +55,6 @@ class InputFragment {
     u64 out_offset = 0;
     u64 out_size_offset = 0;
 
-  private:
     std::span<const u8> span;
 };
 
@@ -125,9 +124,11 @@ class ObjectFile : public InputFile {
     std::vector<WasmSignature> signatures;
     std::vector<WasmImport> imports;
     // TODO: table section
+    std::vector<WasmFunction> functions;
     std::vector<WasmLimits> memories;
     std::vector<WasmGlobal> globals;
     std::vector<WasmExport> exports;
+    std::vector<InputFragment *> code_ifrags;
     std::vector<WasmElemSegment> elem_segments;
 
     // from the "name" section
@@ -147,9 +148,6 @@ class ObjectFile : public InputFile {
 
   private:
     ObjectFile(Context &ctx, const std::string &filename, MappedFile *mf);
-
-    std::vector<WasmFunction> functions;
-    std::vector<InputFragment *> code_ifrags;
 };
 
 } // namespace xld::wasm

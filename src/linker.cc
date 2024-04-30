@@ -90,6 +90,9 @@ int linker_main(int argc, char **argv) {
     // - Finally, the actual symbol resolution.
     // - LTO, which requires preliminary symbol resolution before running
     //   and a follow-up re-resolution after the LTO objects are emitted.
+
+    // Resolve symbol definitions. Error if there are multiple definitons for a
+    // single symbol.
     resolve_symbols(ctx);
 
     check_undefined(ctx);
@@ -145,15 +148,16 @@ int linker_main(int argc, char **argv) {
 
     // Set actual addresses to linker-synthesized symbols.
     // fix_synthetic_symbols(ctx);
+
+    setup_ctors(ctx);
     
     setup_indirect_functions(ctx);
     setup_memory(ctx);
 
-    // At this point, both memory and file layouts are fixed.
-
     // Compute sizes of output sections while assigning offsets
     // within an output section to input sections.
     u64 size = compute_section_sizes(ctx);
+    // At this point, both memory and file layouts are fixed.
 
     // https://github.com/tamaroning/mold/blob/3df7c8e89c507865abe0fad4ff5355f4d328f78d/elf/main.cc#L637
     std::string filename{kDefaultFileName};

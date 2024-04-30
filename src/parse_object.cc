@@ -241,7 +241,8 @@ void ObjectFile::parse_linking_sec(Context &ctx, const u8 *&p, const u32 size) {
                                           .import_module = import_module,
                                           .import_name = import_name,
                                           .export_name = std::nullopt,
-                                          .value = {.element_index = index}};
+                                          .value = {.element_index = index},
+                                          .init_func_priority = std::nullopt};
                 } break;
                 case WASM_SYMBOL_TYPE_TABLE: {
                     Fatal(ctx) << "unimplemented wasm_symbol_type_table"
@@ -287,7 +288,8 @@ void ObjectFile::parse_linking_sec(Context &ctx, const u8 *&p, const u32 size) {
                                           .import_module = import_module,
                                           .import_name = import_name,
                                           .export_name = std::nullopt,
-                                          .value = {.element_index = index}};
+                                          .value = {.element_index = index},
+                                          .init_func_priority = std::nullopt};
                 } break;
                 case WASM_SYMBOL_TYPE_DATA: {
                     std::string name = parse_name(p);
@@ -314,13 +316,13 @@ void ObjectFile::parse_linking_sec(Context &ctx, const u8 *&p, const u32 size) {
                         }
                     }
                     info = WasmSymbolInfo{
-                        name,
-                        type,
-                        flags,
-                        std::nullopt,
-                        std::nullopt,
-                        std::nullopt,
-                        {.data_ref = {segment_index, offset, size}}};
+                        .name = name,
+                        .kind = type,
+                        .flags = flags,
+                        .import_module = std::nullopt,
+                        .export_name = std::nullopt,
+                        .value = {.data_ref = {segment_index, offset, size}},
+                        .init_func_priority = std::nullopt};
                 } break;
                 default: {
                     Error(ctx) << "TODO: Unknown symbol type: " << (int)type
@@ -345,13 +347,13 @@ void ObjectFile::parse_linking_sec(Context &ctx, const u8 *&p, const u32 size) {
         case WASM_INIT_FUNCS: {
             u32 count = parse_varuint32(p);
             while (count--) {
-                WasmInitFunc init;
-                init.priority = parse_varuint32(p);
-                init.symbol = parse_varuint32(p);
-                if (!is_valid_function_symbol(init.symbol))
+                u32 priority = parse_varuint32(p);
+                u32 symbol_index = parse_varuint32(p);
+                if (!is_valid_function_symbol(symbol_index))
                     Error(ctx) << "invalid function symbol";
-
-                linking_data.init_functions.push_back(init);
+                Debug(ctx) << "init_func_priority=" << priority
+                           << " symbol=" << symbols[symbol_index].info.name;
+                symbols[symbol_index].info.init_func_priority = priority;
             }
         } break;
         case WASM_COMDAT_INFO: {
@@ -939,6 +941,7 @@ static void set_relocs(Context &ctx, ObjectFile *obj) {
         if (!is_sorted)
             Error(ctx) << "relocations are not sorted";
 
+        // TODO: use binary search
         for (WasmRelocation &reloc : relocs) {
             if (ifrag->in_offset <= reloc.offset &&
                 reloc.offset <= ifrag->in_offset + ifrag->get_size()) {

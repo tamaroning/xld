@@ -23,6 +23,8 @@ class WasmSymbol {
     const wasm::WasmGlobalType *global_type;
     const wasm::WasmTableType *table_type;
     const wasm::WasmSignature *signature;
+    // priority of the init function if this is a init function
+    std::optional<u32> init_func_priority = std::nullopt;
 
     bool is_type_function() const {
         return info.kind == wasm::WASM_SYMBOL_TYPE_FUNCTION;

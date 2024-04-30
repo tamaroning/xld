@@ -365,7 +365,6 @@ struct WasmInitFunc {
 // Info from the linking metadata section of a wasm object file.
 struct WasmLinkingData {
     uint32_t version;
-    std::vector<WasmInitFunc> init_functions;
     // std::vector<std::string> comdats;
     //  The linking section also contains a symbol table. This info (represented
     //  in a WasmSymbolInfo struct) is stored inside the WasmSymbol object
@@ -399,6 +398,8 @@ struct WasmSymbolInfo {
         // For a data symbols, the address of the data relative to segment.
         WasmDataReference data_ref;
     } value;
+    // priority of the init function if this is a init function
+    std::optional<u32> init_func_priority = std::nullopt;
 };
 
 struct WasmSignature {

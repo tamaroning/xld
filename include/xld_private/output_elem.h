@@ -64,6 +64,7 @@ class OutputSegment {
     u32 memory_index;
     u32 linking_flags;
     u32 size;
+    // virtual address
     u32 va;
 };
 
@@ -76,6 +77,15 @@ class OutputElem {
     ValType elem_type;
     std::vector<Symbol *> elements;
     u32 flags = 0;
+};
+
+class SyntheticFunction {
+  public:
+    SyntheticFunction(WasmSignature &sig) : sig(std::move(sig)) {}
+
+    WasmSignature sig;
+    // the content is not fixed yet if empty
+    std::vector<u8> code;
 };
 
 } // namespace xld::wasm

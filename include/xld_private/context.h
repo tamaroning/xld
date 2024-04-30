@@ -70,6 +70,7 @@ struct Context {
     // Linker synthesized symbols which needs special handling.
     // Other linker synthesized symbols reside in the internal object file.
     OutputElem __indirect_function_table{ValType(0)};
+    InputFragment* __wasm_call_ctors = nullptr;
     WasmLimits output_memory;
     WasmExport output_memory_export;
 

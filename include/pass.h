@@ -21,6 +21,8 @@ void calculate_types(Context &);
 
 void setup_indirect_functions(Context &);
 
+void setup_ctors(Context &);
+
 void setup_memory(Context &);
 
 u64 compute_section_sizes(Context &);

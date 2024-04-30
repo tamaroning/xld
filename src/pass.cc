@@ -1,4 +1,6 @@
 #include "pass.h"
+#include "common/integers.h"
+#include "common/leb128.h"
 #include "common/log.h"
 #include "common/system.h"
 #include "oneapi/tbb/parallel_for.h"
@@ -6,11 +8,13 @@
 #include "wasm/object.h"
 #include "wasm/utils.h"
 #include "xld.h"
+#include "xld_private/chunk.h"
 #include "xld_private/input_file.h"
 #include "xld_private/output_elem.h"
 #include "xld_private/symbol.h"
 #include <mutex>
 #include <set>
+#include <sstream>
 
 namespace xld::wasm {
 
@@ -98,13 +102,48 @@ void create_internal_file(Context &ctx) {
 
     // __stack_pointer
     {
-        // We set the actual value in setup_memory
+        // We set the actual value in `setup_memory`
         WasmGlobal g = WasmGlobal{.type = mutable_global_type_i32,
                                   .init_expr = int32_const(0),
                                   .symbol_name = "__stack_pointer"};
         add_synthetic_global_symbol(ctx, obj, &g,
                                     WASM_SYMBOL_BINDING_GLOBAL |
                                         WASM_SYMBOL_VISIBILITY_HIDDEN);
+    }
+
+    // __wasm_call_ctors
+    {
+        // add type () -> nil
+        std::vector<ValType> v = {};
+        WasmSignature void_sig = WasmSignature{
+            v,
+            v,
+        };
+        u32 sig_index = obj->signatures.size();
+        obj->signatures.push_back(void_sig);
+        u32 index = obj->functions.size();
+        WasmFunction f = {
+            .index = index,
+            .sig_index = sig_index,
+            .symbol_name = "__wasm_call_ctors",
+        };
+        WasmSymbolInfo info =
+            WasmSymbolInfo{.name = f.symbol_name,
+                           .kind = WASM_SYMBOL_TYPE_FUNCTION,
+                           .flags = WASM_SYMBOL_BINDING_GLOBAL,
+                           .value = {
+                               .element_index = index,
+                           }};
+        WasmSymbol wsym(info, nullptr, nullptr, &obj->signatures[sig_index]);
+        obj->functions.push_back(f);
+        {
+            // Dummy content.
+            static std::vector<u8> dummy = {WASM_OPCODE_END};
+            ctx.__wasm_call_ctors = new InputFragment(0, obj, dummy, 0);
+            ctx.ifrag_pool.emplace_back(ctx.__wasm_call_ctors);
+            obj->code_ifrags.emplace_back(ctx.__wasm_call_ctors);
+        }
+        obj->symbols.push_back(wsym);
     }
 
     // __indirect_function_table is set in `setup_indirect_functions`
@@ -145,6 +184,7 @@ void add_definitions(Context &ctx) {
         // same item.
         std::set<std::pair<WasmSymbolType, u32>> visited;
         for (auto &wsym : obj->symbols) {
+            Debug(ctx) << "Adding definition: " << wsym.info.name;
             if (wsym.is_binding_local())
                 continue;
             if (wsym.is_undefined())
@@ -152,6 +192,7 @@ void add_definitions(Context &ctx) {
             if (!visited.insert({wsym.info.kind, wsym.info.value.element_index})
                      .second)
                 continue;
+            Debug(ctx) << "yes";
 
             Symbol *sym = get_symbol(ctx, wsym.info.name);
 
@@ -209,6 +250,37 @@ void calculate_types(Context &ctx) {
         sym->sig_index = ctx.signatures.size();
         ctx.signatures.push_back(*sig);
     }
+}
+
+void setup_ctors(Context &ctx) {
+    Debug(ctx) << "Setting up ctors";
+    // Priority -> ctors
+    std::map<u32, std::vector<Symbol *>, std::greater<u32>> map;
+    for (Symbol *f : ctx.functions) {
+        if (f->is_undefined())
+            continue;
+        if (!f->wsym.value().init_func_priority.has_value())
+            continue;
+        Debug(ctx) << "ctor: " << f->name;
+        u32 priority = f->wsym.value().init_func_priority.value();
+        map[priority].push_back(f);
+    }
+
+    std::stringstream s;
+    s << 0; // no locals
+    for (auto &[priority, ctors] : map) {
+        for (Symbol *f : ctors) {
+            s << (u8)WASM_OPCODE_CALL;
+            encode_uleb128(f->index, s);
+        }
+    }
+    s << (u8)WASM_OPCODE_END;
+    static std::vector<u8> buf;
+    buf.resize(s.view().size() + get_uleb128_size(s.view().size()));
+    encode_uleb128(s.view().size(), buf.data());
+    memcpy(buf.data() + get_uleb128_size(s.view().size()), s.view().data(),
+           s.view().size());
+    ctx.__wasm_call_ctors->span = buf;
 }
 
 void setup_indirect_functions(Context &ctx) {
@@ -332,9 +404,6 @@ void setup_memory(Context &ctx) {
                 oseg_va + frag_offset + wsym.info.value.data_ref.offset;
             Debug(ctx) << "Data symbol: " << sym->name << " va: 0x"
                        << sym->virtual_address;
-            Debug(ctx) << "oseg_va: " << oseg_va
-                       << " frag_offset: " << frag_offset
-                       << " offset: " << wsym.info.value.data_ref.offset;
         }
     });
 
