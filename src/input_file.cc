@@ -1,10 +1,8 @@
 
-#include "xld_private/input_file.h"
 #include "common/leb128.h"
 #include "common/log.h"
 #include "wasm/object.h"
 #include "xld.h"
-#include "xld_private/symbol.h"
 
 namespace xld::wasm {
 
@@ -63,16 +61,21 @@ void InputFragment::apply_reloc(Context &ctx, u64 osec_content_file_offset) {
             u32 val = sym->virtual_address + reloc.addend;
             encode_uleb128(val, reloc_loc, 5);
         } break;
+        case R_WASM_TYPE_INDEX_LEB: {
+            std::string &name = this->obj->symbols[reloc.index].info.name;
+            Symbol *sym = get_symbol(ctx, name);
+            u32 val = sym->sig_index;
+            encode_uleb128(val, reloc_loc, 5);
+        } break;
         default:
             Error(ctx) << "TODO: Unknown reloc type: "
                        << get_reloc_type_name(reloc.type);
         }
-        {
-            std::string &name = this->obj->symbols[reloc.index].info.name;
-            Symbol &sym = *get_symbol(ctx, name);
-            Debug(ctx) << "- reloc for symbol: " << sym.name << " ("
-                       << get_reloc_type_name(reloc.type) << ")";
-        }
+
+        std::string &name = this->obj->symbols[reloc.index].info.name;
+        Symbol &sym = *get_symbol(ctx, name);
+        Debug(ctx) << "- reloc for symbol: " << sym.name << " ("
+                   << get_reloc_type_name(reloc.type) << ")";
     }
 }
 
