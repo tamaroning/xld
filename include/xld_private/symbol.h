@@ -8,7 +8,7 @@ namespace xld::wasm {
 // forward-decl
 class InputFile;
 
-u32 get_rank(const WasmSymbol &wsym);
+u32 get_rank(const WasmSymbol *wsym);
 
 // Global or weak symbol. This class is not instanciated for local symbols.
 class Symbol {
@@ -29,11 +29,13 @@ class Symbol {
 
     std::mutex mu;
 
-    std::optional<WasmSymbol> wsym = std::nullopt;
+    std::optional<WasmSymbol *> wsym = std::nullopt;
 
-    bool is_defined() const { return wsym.has_value() && wsym->is_defined(); }
+    bool is_defined() const {
+        return wsym.has_value() && wsym.value()->is_defined();
+    }
     bool is_undefined() const {
-        return !wsym.has_value() || wsym->is_undefined();
+        return !wsym.has_value() || wsym.value()->is_undefined();
     }
 
     // bool is_imported = false;

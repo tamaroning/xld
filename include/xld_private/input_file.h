@@ -81,7 +81,7 @@ class InputFile {
     std::string filename;
     Kind kind = Object;
 
-    std::vector<WasmSymbol> symbols;
+    std::vector<WasmSymbol*> symbols;
 };
 
 class ObjectFile : public InputFile {

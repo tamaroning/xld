@@ -44,25 +44,25 @@ void InputFragment::apply_reloc(Context &ctx, u64 osec_content_file_offset) {
 
         switch (reloc.type) {
         case R_WASM_FUNCTION_INDEX_LEB: {
-            std::string &name = this->obj->symbols[reloc.index].info.name;
+            std::string &name = this->obj->symbols[reloc.index]->info.name;
             Symbol *sym = get_symbol(ctx, name);
             u32 val = sym->index;
             encode_uleb128(val, reloc_loc, 5);
         } break;
         case R_WASM_GLOBAL_INDEX_LEB: {
-            std::string &name = this->obj->symbols[reloc.index].info.name;
+            std::string &name = this->obj->symbols[reloc.index]->info.name;
             Symbol *sym = get_symbol(ctx, name);
             u32 val = sym->index;
             encode_uleb128(val, reloc_loc, 5);
         } break;
         case R_WASM_MEMORY_ADDR_LEB: {
-            std::string &name = this->obj->symbols[reloc.index].info.name;
+            std::string &name = this->obj->symbols[reloc.index]->info.name;
             Symbol *sym = get_symbol(ctx, name);
             u32 val = sym->virtual_address + reloc.addend;
             encode_uleb128(val, reloc_loc, 5);
         } break;
         case R_WASM_TYPE_INDEX_LEB: {
-            std::string &name = this->obj->symbols[reloc.index].info.name;
+            std::string &name = this->obj->symbols[reloc.index]->info.name;
             Symbol *sym = get_symbol(ctx, name);
             u32 val = sym->sig_index;
             encode_uleb128(val, reloc_loc, 5);
@@ -72,7 +72,7 @@ void InputFragment::apply_reloc(Context &ctx, u64 osec_content_file_offset) {
                        << get_reloc_type_name(reloc.type);
         }
 
-        std::string &name = this->obj->symbols[reloc.index].info.name;
+        std::string &name = this->obj->symbols[reloc.index]->info.name;
         Symbol &sym = *get_symbol(ctx, name);
         Debug(ctx) << "- reloc for symbol: " << sym.name << " ("
                    << get_reloc_type_name(reloc.type) << ")";
@@ -164,53 +164,53 @@ WasmLimits &ObjectFile::get_defined_memories(u32 index) {
 }
 
 bool ObjectFile::is_valid_function_symbol(u32 index) {
-    return index < symbols.size() && symbols[index].is_type_function();
+    return index < symbols.size() && symbols[index]->is_type_function();
 }
 
 bool ObjectFile::is_valid_table_symbol(u32 index) {
-    return index < symbols.size() && symbols[index].is_type_table();
+    return index < symbols.size() && symbols[index]->is_type_table();
 }
 
 bool ObjectFile::is_valid_global_symbol(u32 index) {
-    return index < symbols.size() && symbols[index].is_type_global();
+    return index < symbols.size() && symbols[index]->is_type_global();
 }
 
 bool ObjectFile::is_valid_tag_symbol(u32 index) {
-    return index < symbols.size() && symbols[index].is_type_tag();
+    return index < symbols.size() && symbols[index]->is_type_tag();
 }
 
 bool ObjectFile::is_valid_data_symbol(u32 index) {
-    return index < symbols.size() && symbols[index].is_type_data();
+    return index < symbols.size() && symbols[index]->is_type_data();
 }
 
 bool ObjectFile::is_valid_section_symbol(u32 index) {
-    return index < symbols.size() && symbols[index].is_type_section();
+    return index < symbols.size() && symbols[index]->is_type_section();
 }
 
 static void override_symbol(Context &ctx, Symbol *sym, ObjectFile *file,
-                            WasmSymbol &wsym) {
+                            WasmSymbol* wsym) {
     sym->file = file;
     sym->wsym = wsym;
-    sym->elem_index = wsym.info.value.element_index;
-    if (wsym.is_type_function() && file->is_defined_function(sym->elem_index))
+    sym->elem_index = wsym->info.value.element_index;
+    if (wsym->is_type_function() && file->is_defined_function(sym->elem_index))
         sym->ifrag = file->get_function_code(sym->elem_index);
-    if (wsym.is_type_data())
+    if (wsym->is_type_data())
         sym->ifrag = file->data_ifrags[sym->elem_index];
 
-    if (wsym.is_binding_weak())
+    if (wsym->is_binding_weak())
         sym->binding = Symbol::Binding::Weak;
-    else if (wsym.is_binding_global())
+    else if (wsym->is_binding_global())
         sym->binding = Symbol::Binding::Global;
 }
 
 void ObjectFile::resolve_symbols(Context &ctx) {
     // Register all symbols in symtab to global symbol map
-    for (WasmSymbol &wsym : this->symbols) {
-        if (wsym.is_binding_local())
+    for (WasmSymbol* wsym : this->symbols) {
+        if (wsym->is_binding_local())
             continue;
 
         // Non-local symbol has a unique name.
-        Symbol *sym = get_symbol(ctx, wsym.info.name);
+        Symbol *sym = get_symbol(ctx, wsym->info.name);
         std::scoped_lock lock(sym->mu);
 
         if (!sym->wsym.has_value()) {
@@ -218,13 +218,13 @@ void ObjectFile::resolve_symbols(Context &ctx) {
             continue;
         }
 
-        if (wsym.is_exported())
+        if (wsym->is_exported())
             sym->is_exported = true;
 
         if (sym->is_defined() && sym->binding == Symbol::Binding::Global &&
-            wsym.is_defined() && wsym.is_binding_global()) {
+            wsym->is_defined() && wsym->is_binding_global()) {
             Error(ctx) << "Duplicate strong symbol definition: "
-                       << wsym.info.name;
+                       << wsym->info.name;
         }
 
         if (!sym->wsym.has_value() ||

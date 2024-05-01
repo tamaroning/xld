@@ -329,8 +329,10 @@ void ObjectFile::parse_linking_sec(Context &ctx, const u8 *&p, const u32 size) {
                                << ", ignored";
                 }
                 }
-                WasmSymbol sym(info, global_type, table_type, signature);
-                this->symbols.push_back(sym);
+                WasmSymbol *wsym =
+                    new WasmSymbol(info, global_type, table_type, signature);
+                ctx.wsym_pool.emplace_back(std::unique_ptr<WasmSymbol>(wsym));
+                this->symbols.push_back(wsym);
             }
         } break;
         case WASM_SEGMENT_INFO: {
@@ -352,8 +354,8 @@ void ObjectFile::parse_linking_sec(Context &ctx, const u8 *&p, const u32 size) {
                 if (!is_valid_function_symbol(symbol_index))
                     Error(ctx) << "invalid function symbol";
                 Debug(ctx) << "init_func_priority=" << priority
-                           << " symbol=" << symbols[symbol_index].info.name;
-                symbols[symbol_index].info.init_func_priority = priority;
+                           << " symbol=" << symbols[symbol_index]->info.name;
+                symbols[symbol_index]->info.init_func_priority = priority;
             }
         } break;
         case WASM_COMDAT_INFO: {
@@ -1025,11 +1027,11 @@ void ObjectFile::dump(Context &ctx) {
     }
     Debug(ctx) << "Linking-Symbol section";
     for (u32 i = 0; i < this->symbols.size(); i++) {
-        WasmSymbol sym = this->symbols[i];
-        std::string symname = sym.info.import_name.has_value()
-                                  ? (sym.info.import_module.value() + "." +
-                                     sym.info.import_name.value())
-                                  : sym.info.name;
+        WasmSymbol *sym = this->symbols[i];
+        std::string symname = sym->info.import_name.has_value()
+                                  ? (sym->info.import_module.value() + "." +
+                                     sym->info.import_name.value())
+                                  : sym->info.name;
         Debug(ctx) << "  - symbol[" << i << "]: " << symname;
     }
     Debug(ctx) << "Linking-Data section";

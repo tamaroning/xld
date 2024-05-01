@@ -41,6 +41,7 @@ struct Context {
     tbb::concurrent_vector<std::unique_ptr<Chunk>> chunk_pool;
     tbb::concurrent_vector<std::unique_ptr<InputSection>> isec_pool;
     tbb::concurrent_vector<std::unique_ptr<InputFragment>> ifrag_pool;
+    tbb::concurrent_vector<std::unique_ptr<WasmSymbol>> wsym_pool;
 
     // Symbol table
     // TODO: use xxHash

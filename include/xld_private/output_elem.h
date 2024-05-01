@@ -79,6 +79,7 @@ class OutputElem {
     u32 flags = 0;
 };
 
+/*
 class SyntheticFunction {
   public:
     SyntheticFunction(WasmSignature &sig) : sig(std::move(sig)) {}
@@ -86,6 +87,30 @@ class SyntheticFunction {
     WasmSignature sig;
     // the content is not fixed yet if empty
     std::vector<u8> code;
+};
+*/
+
+class OutputFunction {
+  public:
+    OutputFunction()  {}
+
+    ObjectFile* file;
+    WasmSymbol* wsym;
+
+    InputFragment* ifrag;
+    u32 index = 0;
+    u32 sig_index = 0;
+};
+
+class OutputGlobal {
+  public:
+    OutputGlobal() = default;
+
+    std::string_view name;
+    InputFragment* ifrag;
+    u32 index = 0;
+    u32 sig_index = 0;
+    u32 va = 0;
 };
 
 } // namespace xld::wasm

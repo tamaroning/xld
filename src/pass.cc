@@ -6,6 +6,7 @@
 #include "oneapi/tbb/parallel_for.h"
 #include "oneapi/tbb/parallel_for_each.h"
 #include "wasm/object.h"
+#include "wasm/symbol.h"
 #include "wasm/utils.h"
 #include "xld.h"
 #include "xld_private/chunk.h"
@@ -48,23 +49,23 @@ void calculate_imports(Context &ctx) {
             return;
 
         ObjectFile *obj = static_cast<ObjectFile *>(file);
-        for (auto wsym : obj->symbols) {
-            if (wsym.is_type_data())
+        for (WasmSymbol *wsym : obj->symbols) {
+            if (wsym->is_type_data())
                 continue;
-            if (wsym.is_binding_weak())
+            if (wsym->is_binding_weak())
                 continue;
-            if (wsym.is_binding_local())
+            if (wsym->is_binding_local())
                 continue;
-            Symbol *sym = get_symbol(ctx, wsym.info.name);
+            Symbol *sym = get_symbol(ctx, wsym->info.name);
             if (sym->is_defined())
                 continue;
 
-            if (wsym.is_type_function()) {
+            if (wsym->is_type_function()) {
                 ctx.import_functions.insert(sym);
-            } else if (wsym.is_type_global()) {
+            } else if (wsym->is_type_global()) {
                 ctx.import_globals.insert(sym);
             } else {
-                Error(ctx) << "TODO: import symbol type: " << wsym.info.kind;
+                Error(ctx) << "TODO: import symbol type: " << wsym->info.kind;
             }
         }
     });
@@ -78,7 +79,8 @@ add_synthetic_global_symbol(Context &ctx, ObjectFile *obj, WasmGlobal *g,
         .kind = WASM_SYMBOL_TYPE_GLOBAL,
         .flags = flags,
     };
-    WasmSymbol wsym(info, &g->type, nullptr, nullptr);
+    WasmSymbol *wsym = new WasmSymbol(info, &g->type, nullptr, nullptr);
+    ctx.wsym_pool.emplace_back(std::unique_ptr<WasmSymbol>(wsym));
     obj->symbols.push_back(wsym);
     obj->globals.push_back(*g);
 }
@@ -135,7 +137,9 @@ void create_internal_file(Context &ctx) {
                            .value = {
                                .element_index = index,
                            }};
-        WasmSymbol wsym(info, nullptr, nullptr, &obj->signatures[sig_index]);
+        WasmSymbol *wsym =
+            new WasmSymbol(info, nullptr, nullptr, &obj->signatures[sig_index]);
+        ctx.wsym_pool.emplace_back(std::unique_ptr<WasmSymbol>(wsym));
         obj->functions.push_back(f);
         {
             // Dummy content.
@@ -185,26 +189,27 @@ void add_definitions(Context &ctx) {
         // same item.
         std::set<std::pair<WasmSymbolType, u32>> visited;
         for (auto &wsym : obj->symbols) {
-            Debug(ctx) << "Adding definition: " << wsym.info.name;
+            Debug(ctx) << "Adding definition: " << wsym->info.name;
             // if (wsym.is_binding_local())
             //     continue;
-            if (wsym.is_undefined())
+            if (wsym->is_undefined())
                 continue;
-            if (!visited.insert({wsym.info.kind, wsym.info.value.element_index})
+            if (!visited
+                     .insert({wsym->info.kind, wsym->info.value.element_index})
                      .second)
                 continue;
 
-            Symbol *sym = get_symbol(ctx, wsym.info.name);
+            Symbol *sym = get_symbol(ctx, wsym->info.name);
 
-            if (wsym.is_type_function()) {
+            if (wsym->is_type_function()) {
                 ctx.functions.push_back(sym);
                 if (should_export_symbol(ctx, sym))
                     ctx.export_functions.push_back(sym);
-            } else if (wsym.is_type_global()) {
+            } else if (wsym->is_type_global()) {
                 ctx.globals.push_back(sym);
                 if (should_export_symbol(ctx, sym))
                     ctx.export_globals.push_back(sym);
-            } else if (wsym.is_type_data()) {
+            } else if (wsym->is_type_data()) {
                 ctx.data_symbols.push_back(sym);
                 if (should_export_symbol(ctx, sym))
                     ctx.export_datas.push_back(sym);
@@ -240,13 +245,13 @@ void assign_index(Context &ctx) {
 void calculate_types(Context &ctx) {
     for (Symbol *sym : ctx.import_functions) {
         ASSERT(sym->wsym.has_value());
-        const WasmSignature *sig = sym->wsym.value().signature;
+        const WasmSignature *sig = sym->wsym.value()->signature;
         sym->sig_index = ctx.signatures.size();
         ctx.signatures.push_back(*sig);
     }
     for (Symbol *sym : ctx.functions) {
         ASSERT(sym->wsym.has_value());
-        const WasmSignature *sig = sym->wsym.value().signature;
+        const WasmSignature *sig = sym->wsym.value()->signature;
         sym->sig_index = ctx.signatures.size();
         ctx.signatures.push_back(*sig);
     }
@@ -259,10 +264,10 @@ void setup_ctors(Context &ctx) {
     for (Symbol *f : ctx.functions) {
         if (f->is_undefined())
             continue;
-        if (!f->wsym.value().info.init_func_priority.has_value())
+        if (!f->wsym.value()->info.init_func_priority.has_value())
             continue;
         Debug(ctx) << "ctor: " << f->name;
-        u32 priority = f->wsym.value().info.init_func_priority.value();
+        u32 priority = f->wsym.value()->info.init_func_priority.value();
         map[priority].push_back(f);
     }
 
@@ -295,7 +300,7 @@ void setup_indirect_functions(Context &ctx) {
                 case R_WASM_TABLE_INDEX_I64:
                 case R_WASM_TABLE_INDEX_SLEB:
                 case R_WASM_TABLE_INDEX_SLEB64: {
-                    std::string &name = obj->symbols[reloc.index].info.name;
+                    std::string &name = obj->symbols[reloc.index]->info.name;
                     Symbol *sym = get_symbol(ctx, name);
                     if (sym->is_defined()) {
                         ctx.__indirect_function_table.elements.emplace_back(
@@ -344,19 +349,19 @@ void setup_memory(Context &ctx) {
 
         // merge data segments
         for (auto &wsym : obj->symbols) {
-            if (wsym.is_binding_local())
+            if (wsym->is_binding_local())
                 continue;
-            if (wsym.is_undefined())
+            if (wsym->is_undefined())
                 continue;
-            if (!wsym.is_type_data())
+            if (!wsym->is_type_data())
                 continue;
 
             // Get a global symbol and the segment where it resides
-            u32 seg_index = wsym.info.value.data_ref.segment;
+            u32 seg_index = wsym->info.value.data_ref.segment;
             // data segment
             const WasmDataSegment &seg = obj->data_segments[seg_index];
             auto oseg = OutputSegment::get_or_create(ctx, seg.name);
-            auto frag_offset = oseg->get_frag_offset(wsym.info.name);
+            auto frag_offset = oseg->get_frag_offset(wsym->info.name);
             if (frag_offset.has_value())
                 return;
             else {
@@ -382,22 +387,22 @@ void setup_memory(Context &ctx) {
         ObjectFile *obj = static_cast<ObjectFile *>(file);
 
         for (auto &wsym : obj->symbols) {
-            if (wsym.is_binding_local())
+            if (wsym->is_binding_local())
                 continue;
-            if (wsym.is_undefined())
+            if (wsym->is_undefined())
                 continue;
-            if (!wsym.is_type_data())
+            if (!wsym->is_type_data())
                 continue;
 
-            u32 seg_index = wsym.info.value.data_ref.segment;
+            u32 seg_index = wsym->info.value.data_ref.segment;
             const WasmDataSegment &seg = obj->data_segments[seg_index];
             auto oseg = OutputSegment::get_or_create(ctx, seg.name);
             i32 oseg_va = oseg->get_virtual_address();
             i32 frag_offset = oseg->get_frag_offset(seg.name).value();
 
-            Symbol *sym = get_symbol(ctx, wsym.info.name);
+            Symbol *sym = get_symbol(ctx, wsym->info.name);
             sym->virtual_address =
-                oseg_va + frag_offset + wsym.info.value.data_ref.offset;
+                oseg_va + frag_offset + wsym->info.value.data_ref.offset;
             Debug(ctx) << "Data symbol: " << sym->name << " va: 0x"
                        << sym->virtual_address;
         }
