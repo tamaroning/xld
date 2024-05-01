@@ -42,6 +42,7 @@ struct Context {
     tbb::concurrent_vector<std::unique_ptr<InputSection>> isec_pool;
     tbb::concurrent_vector<std::unique_ptr<InputFragment>> ifrag_pool;
     tbb::concurrent_vector<std::unique_ptr<WasmSymbol>> wsym_pool;
+    tbb::concurrent_vector<std::unique_ptr<OutputFunction>> ofunc_pool;
 
     // Symbol table
     // TODO: use xxHash
@@ -71,7 +72,7 @@ struct Context {
     // Linker synthesized symbols which needs special handling.
     // Other linker synthesized symbols reside in the internal object file.
     OutputElem __indirect_function_table{ValType(0)};
-    InputFragment* __wasm_call_ctors = nullptr;
+    InputFragment *__wasm_call_ctors = nullptr;
     WasmLimits output_memory;
     WasmExport output_memory_export;
 
@@ -79,13 +80,13 @@ struct Context {
     tbb::concurrent_set<Symbol *> import_functions;
     tbb::concurrent_set<Symbol *> import_globals;
 
-    tbb::concurrent_vector<Symbol *> functions;
+    tbb::concurrent_vector<OutputFunction *> functions;
     tbb::concurrent_vector<Symbol *> globals;
     tbb::concurrent_vector<Symbol *> data_symbols;
     tbb::concurrent_vector<OutputSegment> output_segments;
     tbb::concurrent_vector<WasmTableType> tables;
 
-    tbb::concurrent_vector<Symbol *> export_functions;
+    tbb::concurrent_vector<OutputFunction *> export_functions;
     tbb::concurrent_vector<Symbol *> export_globals;
     tbb::concurrent_vector<Symbol *> export_datas;
 

@@ -158,8 +158,8 @@ void ImportSection::copy_buf(Context &ctx) {
 u64 FunctionSection::compute_section_size(Context &ctx) {
     u64 size = 0;
     size += get_varuint32_size(ctx.functions.size()); // number of functions
-    for (Symbol *sym : ctx.functions) {
-        size += get_varuint32_size(sym->sig_index);
+    for (OutputFunction *f : ctx.functions) {
+        size += get_varuint32_size(f->sig_index);
     }
     loc.content_size = size;
     finalize_section_size_common(size);
@@ -172,8 +172,8 @@ void FunctionSection::copy_buf(Context &ctx) {
     write_varuint32(buf, loc.content_size);
 
     write_varuint32(buf, ctx.functions.size());
-    for (Symbol *sym : ctx.functions) {
-        write_varuint32(buf, sym->sig_index);
+    for (OutputFunction *f : ctx.functions) {
+        write_varuint32(buf, f->sig_index);
     }
     ASSERT(buf == ctx.buf + loc.offset + loc.size);
 }
@@ -351,10 +351,10 @@ u64 ExportSection::compute_section_size(Context &ctx) {
     size += get_varuint32_size(0);
 
     // functions
-    for (Symbol *sym : ctx.export_functions) {
-        size += get_name_size(sym->name);
+    for (OutputFunction *f : ctx.export_functions) {
+        size += get_name_size(f->wsym->info.name);
         size += 1;
-        size += get_varuint32_size(sym->index);
+        size += get_varuint32_size(f->index);
     }
     // globals
     for (Symbol *sym : ctx.export_globals) {
@@ -382,10 +382,10 @@ void ExportSection::copy_buf(Context &ctx) {
     write_byte(buf, WASM_EXTERNAL_MEMORY);
     write_varuint32(buf, 0);
     // functions
-    for (Symbol *sym : ctx.export_functions) {
-        write_name(buf, sym->name);
+    for (OutputFunction *f : ctx.export_functions) {
+        write_name(buf, f->wsym->info.name);
         write_byte(buf, WASM_EXTERNAL_FUNCTION);
-        write_varuint32(buf, sym->index);
+        write_varuint32(buf, f->index);
     }
     // globals
     for (Symbol *sym : ctx.export_globals) {
@@ -467,13 +467,15 @@ u64 CodeSection::compute_section_size(Context &ctx) {
     u64 size = 0;
     size += get_varuint32_size(ctx.functions.size()); // number of code
 
-    for (auto f : ctx.functions) {
-        Debug(ctx) << "computing code size for " << f->name << " ("
-                   << f->ifrag->get_size() << " bytes)";
-        f->ifrag->out_size_offset = size;
-        size += get_varuint32_size(f->ifrag->get_size());
-        f->ifrag->out_offset = size;
-        size += f->ifrag->get_size();
+    for (OutputFunction *f : ctx.functions) {
+        InputFragment *ifrag =
+            f->file->get_function_code(f->wsym->info.value.element_index);
+        Debug(ctx) << "computing code size for " << f->wsym->info.name << " ("
+                   << ifrag->get_size() << " bytes)";
+        ifrag->out_size_offset = size;
+        size += get_varuint32_size(ifrag->get_size());
+        ifrag->out_offset = size;
+        size += ifrag->get_size();
     }
     loc.content_size = size;
     finalize_section_size_common(size);
@@ -490,18 +492,22 @@ void CodeSection::copy_buf(Context &ctx) {
 
     // functions
     write_varuint32(buf, ctx.functions.size());
-    tbb::parallel_for_each(ctx.functions, [&](Symbol *f) {
-        u8 *size_buf = content_beg + f->ifrag->out_size_offset;
-        write_varuint32(size_buf, f->ifrag->get_size());
-        f->ifrag->write_to(ctx, content_beg + f->ifrag->out_offset);
+    tbb::parallel_for_each(ctx.functions, [&](OutputFunction *f) {
+        InputFragment *ifrag =
+            f->file->get_function_code(f->wsym->info.value.element_index);
+        u8 *size_buf = content_beg + ifrag->out_size_offset;
+        write_varuint32(size_buf, ifrag->get_size());
+        ifrag->write_to(ctx, content_beg + ifrag->out_offset);
     });
 }
 
 void CodeSection::apply_reloc(Context &ctx) {
-    tbb::parallel_for_each(ctx.functions, [&](Symbol *f) {
+    tbb::parallel_for_each(ctx.functions, [&](OutputFunction *f) {
+        InputFragment *ifrag =
+            f->file->get_function_code(f->wsym->info.value.element_index);
         u64 osec_content_file_offset =
             this->loc.offset + (this->loc.size - this->loc.content_size);
-        f->ifrag->apply_reloc(ctx, osec_content_file_offset);
+        ifrag->apply_reloc(ctx, osec_content_file_offset);
     });
 }
 
@@ -607,10 +613,10 @@ u64 NameSection::compute_section_size(Context &ctx) {
     function_subsec_size = 0;
     function_subsec_size += get_varuint32_size(ctx.functions.size());
     for (u32 i = 0; i < ctx.functions.size(); i++) {
-        Symbol *sym = ctx.functions[i];
+        OutputFunction *f = ctx.functions[i];
         u32 index = ctx.import_functions.size() + i;
         function_subsec_size += get_varuint32_size(index);
-        function_subsec_size += get_name_size(sym->name);
+        function_subsec_size += get_name_size(f->wsym->info.name);
     }
     size += get_varuint32_size(function_subsec_size);
     size += function_subsec_size;
@@ -652,10 +658,10 @@ void NameSection::copy_buf(Context &ctx) {
     // function subsec data
     write_varuint32(buf, ctx.functions.size());
     for (u32 i = 0; i < ctx.functions.size(); i++) {
-        Symbol *sym = ctx.functions[i];
+        OutputFunction *f = ctx.functions[i];
         u32 index = ctx.import_functions.size() + i;
         write_varint32(buf, index);
-        write_name(buf, sym->name);
+        write_name(buf, f->wsym->info.name);
     }
 
     // global subsec kind

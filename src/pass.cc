@@ -188,10 +188,10 @@ void add_definitions(Context &ctx) {
         // table in a object file may contain multiple symbols refering to the
         // same item.
         std::set<std::pair<WasmSymbolType, u32>> visited;
-        for (auto &wsym : obj->symbols) {
+        for (WasmSymbol *wsym : obj->symbols) {
             Debug(ctx) << "Adding definition: " << wsym->info.name;
-            // if (wsym.is_binding_local())
-            //     continue;
+            if (wsym->is_binding_local())
+                continue;
             if (wsym->is_undefined())
                 continue;
             if (!visited
@@ -202,9 +202,11 @@ void add_definitions(Context &ctx) {
             Symbol *sym = get_symbol(ctx, wsym->info.name);
 
             if (wsym->is_type_function()) {
-                ctx.functions.push_back(sym);
-                if (should_export_symbol(ctx, sym))
-                    ctx.export_functions.push_back(sym);
+                OutputFunction *o = new OutputFunction(obj, wsym);
+                ctx.ofunc_pool.emplace_back(std::unique_ptr<OutputFunction>(o));
+                ctx.functions.emplace_back(o);
+                if (wsym->is_binding_global() && should_export_symbol(ctx, sym))
+                    ctx.export_functions.push_back(o);
             } else if (wsym->is_type_global()) {
                 ctx.globals.push_back(sym);
                 if (should_export_symbol(ctx, sym))
@@ -215,6 +217,7 @@ void add_definitions(Context &ctx) {
                     ctx.export_datas.push_back(sym);
             }
         }
+        Debug(ctx) << "Added definitions: " << obj->filename;
     });
 }
 
@@ -249,10 +252,9 @@ void calculate_types(Context &ctx) {
         sym->sig_index = ctx.signatures.size();
         ctx.signatures.push_back(*sig);
     }
-    for (Symbol *sym : ctx.functions) {
-        ASSERT(sym->wsym.has_value());
-        const WasmSignature *sig = sym->wsym.value()->signature;
-        sym->sig_index = ctx.signatures.size();
+    for (OutputFunction *f : ctx.functions) {
+        const WasmSignature *sig = f->wsym->signature;
+        f->sig_index = ctx.signatures.size();
         ctx.signatures.push_back(*sig);
     }
 }
@@ -260,21 +262,21 @@ void calculate_types(Context &ctx) {
 void setup_ctors(Context &ctx) {
     Debug(ctx) << "Setting up ctors";
     // Priority -> ctors
-    std::map<u32, std::vector<Symbol *>, std::greater<u32>> map;
-    for (Symbol *f : ctx.functions) {
-        if (f->is_undefined())
+    std::map<u32, std::vector<OutputFunction *>, std::greater<u32>> map;
+    for (OutputFunction *f : ctx.functions) {
+        if (f->wsym->is_undefined())
             continue;
-        if (!f->wsym.value()->info.init_func_priority.has_value())
+        if (!f->wsym->info.init_func_priority.has_value())
             continue;
-        Debug(ctx) << "ctor: " << f->name;
-        u32 priority = f->wsym.value()->info.init_func_priority.value();
+        Debug(ctx) << "ctor: " << f->wsym->info.name;
+        u32 priority = f->wsym->info.init_func_priority.value();
         map[priority].push_back(f);
     }
 
     static std::stringstream s;
     s << (u8)0x00; // no locals
     for (auto &[priority, ctors] : map) {
-        for (Symbol *f : ctors) {
+        for (OutputFunction *f : ctors) {
             s << (u8)WASM_OPCODE_CALL;
             encode_uleb128(f->index, s);
         }

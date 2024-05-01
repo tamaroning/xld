@@ -92,12 +92,16 @@ class SyntheticFunction {
 
 class OutputFunction {
   public:
-    OutputFunction()  {}
+    OutputFunction(ObjectFile *file, WasmSymbol *wsym)
+        : file(file), wsym(wsym) {}
 
-    ObjectFile* file;
-    WasmSymbol* wsym;
+    ObjectFile *file;
+    WasmSymbol *wsym;
 
-    InputFragment* ifrag;
+    InputFragment *get_ifrag() {
+        return file->get_function_code(wsym->info.value.element_index);
+    }
+
     u32 index = 0;
     u32 sig_index = 0;
 };
@@ -107,7 +111,7 @@ class OutputGlobal {
     OutputGlobal() = default;
 
     std::string_view name;
-    InputFragment* ifrag;
+    InputFragment *ifrag;
     u32 index = 0;
     u32 sig_index = 0;
     u32 va = 0;

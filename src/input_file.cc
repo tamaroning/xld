@@ -188,7 +188,7 @@ bool ObjectFile::is_valid_section_symbol(u32 index) {
 }
 
 static void override_symbol(Context &ctx, Symbol *sym, ObjectFile *file,
-                            WasmSymbol* wsym) {
+                            WasmSymbol *wsym) {
     sym->file = file;
     sym->wsym = wsym;
     sym->elem_index = wsym->info.value.element_index;
@@ -205,7 +205,7 @@ static void override_symbol(Context &ctx, Symbol *sym, ObjectFile *file,
 
 void ObjectFile::resolve_symbols(Context &ctx) {
     // Register all symbols in symtab to global symbol map
-    for (WasmSymbol* wsym : this->symbols) {
+    for (WasmSymbol *wsym : this->symbols) {
         if (wsym->is_binding_local())
             continue;
 

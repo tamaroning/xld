@@ -59,6 +59,16 @@ class InputFragment {
     std::span<const u8> span;
 };
 
+class CodeFragment : public InputFragment {
+  public:
+    CodeFragment(u32 sec_index, ObjectFile *obj, std::span<const u8> span,
+                 u64 in_offset)
+        : InputFragment(sec_index, obj, span, in_offset) {}
+
+    u32 index = 0;
+    u32 sig_index = 0;
+};
+
 class InputFile {
   public:
     // Only object file is supported
@@ -81,7 +91,7 @@ class InputFile {
     std::string filename;
     Kind kind = Object;
 
-    std::vector<WasmSymbol*> symbols;
+    std::vector<WasmSymbol *> symbols;
 };
 
 class ObjectFile : public InputFile {
