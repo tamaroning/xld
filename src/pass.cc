@@ -15,6 +15,7 @@
 #include <mutex>
 #include <set>
 #include <sstream>
+#include <string_view>
 
 namespace xld::wasm {
 
@@ -138,7 +139,7 @@ void create_internal_file(Context &ctx) {
         obj->functions.push_back(f);
         {
             // Dummy content.
-            static std::vector<u8> dummy = {WASM_OPCODE_END};
+            static std::vector<u8> dummy = {0x00, WASM_OPCODE_END};
             ctx.__wasm_call_ctors = new InputFragment(0, obj, dummy, 0);
             ctx.ifrag_pool.emplace_back(ctx.__wasm_call_ctors);
             obj->code_ifrags.emplace_back(ctx.__wasm_call_ctors);
@@ -185,14 +186,13 @@ void add_definitions(Context &ctx) {
         std::set<std::pair<WasmSymbolType, u32>> visited;
         for (auto &wsym : obj->symbols) {
             Debug(ctx) << "Adding definition: " << wsym.info.name;
-            if (wsym.is_binding_local())
-                continue;
+            // if (wsym.is_binding_local())
+            //     continue;
             if (wsym.is_undefined())
                 continue;
             if (!visited.insert({wsym.info.kind, wsym.info.value.element_index})
                      .second)
                 continue;
-            Debug(ctx) << "yes";
 
             Symbol *sym = get_symbol(ctx, wsym.info.name);
 
@@ -266,8 +266,8 @@ void setup_ctors(Context &ctx) {
         map[priority].push_back(f);
     }
 
-    std::stringstream s;
-    s << 0; // no locals
+    static std::stringstream s;
+    s << (u8)0x00; // no locals
     for (auto &[priority, ctors] : map) {
         for (Symbol *f : ctors) {
             s << (u8)WASM_OPCODE_CALL;
@@ -275,12 +275,8 @@ void setup_ctors(Context &ctx) {
         }
     }
     s << (u8)WASM_OPCODE_END;
-    static std::vector<u8> buf;
-    buf.resize(s.view().size() + get_uleb128_size(s.view().size()));
-    encode_uleb128(s.view().size(), buf.data());
-    memcpy(buf.data() + get_uleb128_size(s.view().size()), s.view().data(),
-           s.view().size());
-    ctx.__wasm_call_ctors->span = buf;
+    ctx.__wasm_call_ctors->span =
+        std::span<const u8>{(const u8 *)s.view().data(), s.view().size()};
 }
 
 void setup_indirect_functions(Context &ctx) {

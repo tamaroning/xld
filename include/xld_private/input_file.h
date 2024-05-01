@@ -55,6 +55,7 @@ class InputFragment {
     u64 out_offset = 0;
     u64 out_size_offset = 0;
 
+    // does not contain size info. Only its body.
     std::span<const u8> span;
 };
 
